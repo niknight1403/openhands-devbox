@@ -11,7 +11,7 @@ on:
         description: "Aufgabe in natuerlicher Sprache"
         required: true
       model:
-        description: "Modell (leer = Routen-Standard: OpenRouter deepseek-v3:free / OpenAI gpt-4o-mini)"
+        description: "Modell (leer = Routen-Standard: OpenRouter qwen3.8-27b:free / OpenAI gpt-4o-mini)"
         required: false
         default: ""
 
@@ -53,7 +53,7 @@ jobs:
         run: |
           if [ -n "$OPENROUTER_API_KEY" ]; then
             export LLM_KEY="$OPENROUTER_API_KEY" LLM_URL="https://openrouter.ai/api/v1"
-            [ -z "$MODEL" ] && MODEL="deepseek/deepseek-chat-v3-0324:free"
+            [ -z "$MODEL" ] && MODEL="qwen/qwen3.8-27b:free"
           elif [ -n "$OPENAI_API_KEY" ]; then
             export LLM_KEY="$OPENAI_API_KEY" LLM_URL="https://api.openai.com/v1"
             [ -z "$MODEL" ] && MODEL="gpt-4o-mini"
@@ -71,7 +71,7 @@ jobs:
           set -o pipefail
           openhands --headless --override-with-envs \
             -t "$TASK -- WICHTIG: Aendere nur Dateien im Workspace. Fuehre KEIN git commit, git push oder gh-Befehl aus; das uebernimmt der Workflow. Fuehre Tests aus, wenn eine package.json existiert." 2>&1 | tee openhands-run.log
-          if grep -E "litellm\.(RateLimitError|AuthenticationError|BadRequestError|NotFoundError)|no credits remaining" openhands-run.log; then
+          if grep -E "litellm\.\w+Error|no credits remaining" openhands-run.log; then
             echo "::error::LLM-Aufruf fehlgeschlagen (Credits/Key) - siehe Log oben"
             exit 1
           fi
