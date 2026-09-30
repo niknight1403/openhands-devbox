@@ -68,8 +68,13 @@ jobs:
           export LLM_API_KEY="$LLM_KEY"
           export LLM_BASE_URL="$LLM_URL"
           export LLM_MODEL="$MODEL"
+          set -o pipefail
           openhands --headless --override-with-envs \
-            -t "$TASK -- WICHTIG: Aendere nur Dateien im Workspace. Fuehre KEIN git commit, git push oder gh-Befehl aus; das uebernimmt der Workflow. Fuehre Tests aus, wenn eine package.json existiert."
+            -t "$TASK -- WICHTIG: Aendere nur Dateien im Workspace. Fuehre KEIN git commit, git push oder gh-Befehl aus; das uebernimmt der Workflow. Fuehre Tests aus, wenn eine package.json existiert." 2>&1 | tee openhands-run.log
+          if grep -q "no credits\|RateLimitError\|AuthenticationError\|API key" openhands-run.log; then
+            echo "::error::LLM-Aufruf fehlgeschlagen (Credits/Key) - siehe Log oben"
+            exit 1
+          fi
 
       - name: Aenderungen als Draft-PR einreichen
         env:
