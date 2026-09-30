@@ -9,9 +9,9 @@ on:
         description: "Aufgabe in natuerlicher Sprache"
         required: true
       model:
-        description: "OpenRouter-Modell"
+        description: "Modell (leer = Routen-Standard: OpenRouter deepseek-v3:free / OpenAI gpt-4o-mini)"
         required: false
-        default: "deepseek/deepseek-chat-v3-0324:free"
+        default: ""
 
 jobs:
   openhands:
@@ -40,19 +40,26 @@ jobs:
           TASK: ${{ inputs.task }}
           MODEL: ${{ inputs.model }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          if [ -z "$OPENROUTER_API_KEY" ]; then
-            echo "::error::Secret OPENROUTER_API_KEY fehlt im Repo (Settings -> Secrets and variables -> Actions)"
+          if [ -n "$OPENROUTER_API_KEY" ]; then
+            export LLM_KEY="$OPENROUTER_API_KEY" LLM_URL="https://openrouter.ai/api/v1"
+            [ -z "$MODEL" ] && MODEL="deepseek/deepseek-chat-v3-0324:free"
+          elif [ -n "$OPENAI_API_KEY" ]; then
+            export LLM_KEY="$OPENAI_API_KEY" LLM_URL="https://api.openai.com/v1"
+            [ -z "$MODEL" ] && MODEL="gpt-4o-mini"
+          else
+            echo "::error::Weder OPENROUTER_API_KEY noch OPENAI_API_KEY als Secret hinterlegt"
             exit 1
           fi
-          echo "Modell: $MODEL"
+          echo "Route: $LLM_URL | Modell: $MODEL"
           docker pull ghcr.io/all-hands-ai/openhands:latest
           docker run --rm \
             -e SANDBOX_USER_ID=$(id -u) \
             -e WORKSPACE_MOUNT_PATH="$PWD/workspace" \
             -e WORKSPACE_BASE=/workspace \
-            -e LLM_API_KEY="$OPENROUTER_API_KEY" \
-            -e LLM_BASE_URL=https://openrouter.ai/api/v1 \
+            -e LLM_API_KEY="$LLM_KEY" \
+            -e LLM_BASE_URL="$LLM_URL" \
             -e LLM_MODEL="$MODEL" \
             -e LOG_LEVEL=info \
             -v "$PWD/workspace:/workspace" \
