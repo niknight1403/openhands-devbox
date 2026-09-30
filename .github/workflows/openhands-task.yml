@@ -71,7 +71,7 @@ jobs:
           set -o pipefail
           openhands --headless --override-with-envs \
             -t "$TASK -- WICHTIG: Aendere nur Dateien im Workspace. Fuehre KEIN git commit, git push oder gh-Befehl aus; das uebernimmt der Workflow. Fuehre Tests aus, wenn eine package.json existiert." 2>&1 | tee openhands-run.log
-          if grep -q "no credits\|RateLimitError\|AuthenticationError\|API key" openhands-run.log; then
+          if grep -E "litellm\.(RateLimitError|AuthenticationError|BadRequestError|NotFoundError)|no credits remaining" openhands-run.log; then
             echo "::error::LLM-Aufruf fehlgeschlagen (Credits/Key) - siehe Log oben"
             exit 1
           fi
