@@ -1,32 +1,31 @@
 # OpenHands Devbox 🤖
 
-Autonomer Entwicklungsagent (OpenHands) als **GitHub Codespace** — komplett kostenlos, ideal vom Handy (Termux/Browser) steuerbar.
+Autonomer Entwicklungsagent (OpenHands) — **komplett kostenlos, komplett vom Handy steuerbar**. Kein Codespace nötig: OpenHands läuft headless als **GitHub Action**. Öffentliche Repos haben unbegrenzte Actions-Minuten.
 
-## Warum Codespace?
-Docker läuft nicht auf Android/Termux. Ein Codespace bringt Docker eingebaut mit. Öffentliche Repos verbrauchen das Free-Kontingent nicht (120 Kernstunden/Monat bleiben für andere Projekte frei).
+## Start vom Handy (3 Tipps)
+1. Repo-Seite → **Actions**-Tab → links **OpenHands Task** → **Run workflow**
+2. Aufgabe eintippen (natürliche Sprache), Modell vorausgewählt lassen → **Run**
+3. Fertig: Ergebnis erscheint als **Draft-PR** im Agenten-Villa-Repo — vom Handy reviewen
 
-## Start vom Handy (2 Klicks)
-1. Auf dieser Repo-Seite: grüner **`<> Code`**-Button → **Codespaces** → **Create codespace on main**
-2. Warten (erste ~2 Minuten, Image-Pull), dann im unteren Panel → **Ports** → Port **3000** → Globus-Symbol 🌐 öffnet die OpenHands-UI im Handy-Browser
+OpenHands arbeitet auf `niknight1403/Agenten-Villa`, nur auf `agent/*`-Branches, nie direkt auf main. Freies DeepSeek-Modell über OpenRouter (gleiche Free-Route wie die Agenten-Villa).
 
-OpenHands startet dank `postStartCommand` automatisch mit.
+## Einmalige Einrichtung (Settings → Secrets and variables → Actions)
+Zwei Secrets in diesem Repo hinterlegen:
+- `OPENROUTER_API_KEY` — dein OpenRouter-Key (kostenlose Modelle)
+- `OPENHANDS_GH_PAT` — GitHub-Token mit `repo`-Recht (für Checkout, Push, Draft-PR der Agenten-Villa)
 
-## Einmalige Einrichtung (wichtig)
-Auf github.com → Settings → Codespaces → **Secrets** (gilt für dieses Repo):
-- `OPENROUTER_API_KEY` — dein OpenRouter-Key (kostenlose Modelle, wie in der Agenten-Villa)
-- `OPENHANDS_GH_PAT` — GitHub-PAT mit `repo`-Recht, damit OpenHands Branches/PRs anlegen kann
+Ohne `OPENROUTER_API_KEY` bricht der Lauf kontrolliert ab und sagt es im Log.
 
-In der OpenHands-UI unter Einstellungen → LLM:
-- Provider: **OpenRouter**
-- Model: ein `:free`-Modell (z. B. `deepseek/deepseek-chat-v3-0324:free`)
+## Aufgabenteilung
+- **OpenHands (dieses Repo):** kleine Jobs, Experimente, spontane Aufgaben — jederzeit vom Handy
+- **Autonom-Wache (Mo/Do 9 Uhr):** reguläre Agenten-Villa-Sprints, CI-Wartung
 
-## Arbeiten mit der Agenten-Villa
-- Repository beim Task angeben: `niknight1403/Agenten-Villa`
-- Änderungen nur über `agent/*`-Branches mit Draft-PR — gleiche Regeln wie für die Autonom-Wache
-- Abgrenzung: OpenHands für kleine Jobs/Experimente; reguläre Sprints fährt die Autonom-Wache (Mo/Do 9 Uhr)
+## Fallback: Codespaces
+Das Codespace-Kontingent (120 Kernstunden) **resettet monatlich** — das `.devcontainer` bleibt im Repo; wenn wieder Quota da ist, funktioniert der UI-Weg weiter.
 
 ## Kosten: 0 €
-Codespaces (öffentliches Repo), OpenRouter Free, GitHub gratis. Docker-Compose-Stack lokal in diesem Repo, keine bezahlten Dienste.
+Actions auf öffentlichen Repos: unbegrenzt kostenlos. OpenRouter Free, GitHub gratis. Keine Dienste mit Zahlungspflicht.
 
 ## Wichtig
-Nach der Arbeit: Codespace stoppen (`Codespaces` → ⋯ → Stop) — nur Laufzeit zählt, gestoppte Codespaces kosten nichts.
+- Nach Review: Draft-PR normal mergen — niemals direkt auf main pushen
+- Bei Fehlern: Actions-Log zeigt jeden OpenHands-Schritt (`--headless` loggt alles)

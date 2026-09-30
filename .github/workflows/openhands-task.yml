@@ -1,0 +1,82 @@
+# OpenHands Task — vom Handy startbar (Repo → Actions → OpenHands Task → Run workflow)
+# Arbeitet auf niknight1403/Agenten-Villa: Ergebnis landet als Draft-PR auf einem agent/*-Branch.
+name: OpenHands Task
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Aufgabe in natuerlicher Sprache"
+        required: true
+      model:
+        description: "OpenRouter-Modell"
+        required: false
+        default: "deepseek/deepseek-chat-v3-0324:free"
+
+jobs:
+  openhands:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Agenten-Villa auschecken
+        uses: actions/checkout@v4
+        with:
+          repository: niknight1403/Agenten-Villa
+          token: ${{ secrets.OPENHANDS_GH_PAT }}
+          ref: main
+          path: workspace
+
+      - name: agent/*-Branch anlegen
+        run: |
+          cd workspace
+          git config user.name "OpenHands Agent"
+          git config user.email "niknight1403@users.noreply.github.com"
+          BRANCH="agent/openhands-$(date +%Y%m%d-%H%M%S)"
+          echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+          git checkout -b "$BRANCH"
+
+      - name: OpenHands headless ausfuehren
+        env:
+          TASK: ${{ inputs.task }}
+          MODEL: ${{ inputs.model }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "::error::Secret OPENROUTER_API_KEY fehlt im Repo (Settings -> Secrets and variables -> Actions)"
+            exit 1
+          fi
+          echo "Modell: $MODEL"
+          docker pull ghcr.io/all-hands-ai/openhands:latest
+          docker run --rm \
+            -e SANDBOX_USER_ID=$(id -u) \
+            -e WORKSPACE_MOUNT_PATH="$PWD/workspace" \
+            -e WORKSPACE_BASE=/workspace \
+            -e LLM_API_KEY="$OPENROUTER_API_KEY" \
+            -e LLM_BASE_URL=https://openrouter.ai/api/v1 \
+            -e LLM_MODEL="$MODEL" \
+            -e LOG_LEVEL=info \
+            -v "$PWD/workspace:/workspace" \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            ghcr.io/all-hands-ai/openhands:latest \
+            --headless --max-iterations 100 \
+            -t "$TASK -- WICHTIG: Aendere nur Dateien im Workspace. Fuehre KEIN git commit, git push oder gh-Befehl aus; das uebernimmt der Workflow. Fuehre Tests aus, wenn eine package.json existiert."
+
+      - name: Aenderungen als Draft-PR einreichen
+        env:
+          GH_TOKEN: ${{ secrets.OPENHANDS_GH_PAT }}
+          TASK_SUBJECT: ${{ inputs.task }}
+        run: |
+          cd workspace
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "OpenHands hat keine Aenderungen hinterlassen - kein PR noetig."
+            exit 0
+          fi
+          export TASK_SUBJECT=$(printf '%s' "$TASK_SUBJECT" | head -c 60 | tr '\n' ' ')
+          git add -A
+          git commit -m "openhands: $TASK_SUBJECT"
+          git push origin "$BRANCH"
+          gh pr create \
+            --repo niknight1403/Agenten-Villa \
+            --base main --head "$BRANCH" --draft \
+            --title "OpenHands: $TASK_SUBJECT" \
+            --body "Automatisch von OpenHands (openhands-devbox) erzeugt. Task: $TASK_SUBJECT - Bitte reviewen, nie direkt auf main mergen."
