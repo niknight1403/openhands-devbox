@@ -53,7 +53,7 @@ jobs:
         run: |
           if [ -n "$OPENROUTER_API_KEY" ]; then
             export LLM_KEY="$OPENROUTER_API_KEY" LLM_URL="https://openrouter.ai/api/v1"
-            [ -z "$MODEL" ] && MODEL="qwen/qwen3.8-27b:free"
+            [ -z "$MODEL" ] && MODEL="openrouter/qwen/qwen3.8-27b:free"
           elif [ -n "$OPENAI_API_KEY" ]; then
             export LLM_KEY="$OPENAI_API_KEY" LLM_URL="https://api.openai.com/v1"
             [ -z "$MODEL" ] && MODEL="gpt-4o-mini"
@@ -75,6 +75,7 @@ jobs:
             echo "::error::LLM-Aufruf fehlgeschlagen (Credits/Key) - siehe Log oben"
             exit 1
           fi
+          python3 -c 'import glob,json,sys; files=glob.glob("/home/runner/.openhands/conversations/*/events/*.json"); errs=[(d.get("detail") or d.get("code")) for f in files for d in [json.load(open(f))] if d.get("kind")=="ConversationErrorEvent"]; print(("::error::OpenHands brach ab: " + " | ".join(map(str,errs))) if errs else ""); sys.exit(1 if errs else 0)'
 
       - name: Aenderungen als Draft-PR einreichen
         env:
