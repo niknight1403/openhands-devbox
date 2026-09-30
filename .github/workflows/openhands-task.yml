@@ -1,5 +1,7 @@
 # OpenHands Task — vom Handy startbar (Repo → Actions → OpenHands Task → Run workflow)
 # Arbeitet auf niknight1403/Agenten-Villa: Ergebnis landet als Draft-PR auf einem agent/*-Branch.
+# Nutzt das offizielle OpenHands-CLI (PyPI: openhands) im Headless-Modus, siehe
+# https://docs.openhands.dev/openhands/usage/cli/installation.md
 name: OpenHands Task
 
 on:
@@ -16,7 +18,7 @@ on:
 jobs:
   openhands:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 40
     steps:
       - name: Agenten-Villa auschecken
         uses: actions/checkout@v4
@@ -34,6 +36,13 @@ jobs:
           BRANCH="agent/openhands-$(date +%Y%m%d-%H%M%S)"
           echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
           git checkout -b "$BRANCH"
+
+      - name: OpenHands CLI installieren (offizieller Weg, uv + PyPI)
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          export PATH="$HOME/.local/bin:$PATH"
+          uv tool install openhands --python 3.12
+          openhands --version
 
       - name: OpenHands headless ausfuehren
         env:
@@ -53,19 +62,13 @@ jobs:
             exit 1
           fi
           echo "Route: $LLM_URL | Modell: $MODEL"
-          docker pull ghcr.io/all-hands-ai/openhands:latest
-          docker run --rm \
-            -e SANDBOX_USER_ID=$(id -u) \
-            -e WORKSPACE_MOUNT_PATH="$PWD/workspace" \
-            -e WORKSPACE_BASE=/workspace \
-            -e LLM_API_KEY="$LLM_KEY" \
-            -e LLM_BASE_URL="$LLM_URL" \
-            -e LLM_MODEL="$MODEL" \
-            -e LOG_LEVEL=info \
-            -v "$PWD/workspace:/workspace" \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            ghcr.io/all-hands-ai/openhands:latest \
-            --headless --max-iterations 100 \
+          cd workspace
+          export SANDBOX_USER_ID=$(id -u)
+          export SANDBOX_VOLUMES="$PWD:/workspace:rw"
+          export LLM_API_KEY="$LLM_KEY"
+          export LLM_BASE_URL="$LLM_URL"
+          export LLM_MODEL="$MODEL"
+          openhands --headless --override-with-envs \
             -t "$TASK -- WICHTIG: Aendere nur Dateien im Workspace. Fuehre KEIN git commit, git push oder gh-Befehl aus; das uebernimmt der Workflow. Fuehre Tests aus, wenn eine package.json existiert."
 
       - name: Aenderungen als Draft-PR einreichen
