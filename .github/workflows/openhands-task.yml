@@ -2,14 +2,24 @@
 # Arbeitet auf niknight1403/Agenten-Villa: Ergebnis landet als Draft-PR auf einem agent/*-Branch.
 # Nutzt das offizielle OpenHands-CLI (PyPI: openhands) im Headless-Modus, siehe
 # https://docs.openhands.dev/openhands/usage/cli/installation.md
+#
+# Autonom-Wache: laeuft automatisch Mo+Do 09:00 Europe/Berlin (cron ist UTC;
+# 7:00 UTC = 9:00 Sommerzeit / 8:00 Winterzeit - bei Bedarf anpassen).
+# Ohne manuelle Eingabe nutzt der geplante Lauf eine feste Standardaufgabe
+# (siehe DEFAULT_TASK unten): Projekt funktionsfaehig halten, Grafik/Optik
+# optimieren, Werkzeuge/Features sinnvoll ausbauen - max. 1-3 fokussierte
+# Aenderungen, keine Workflow- oder Secret-Aenderungen, nie direkt auf main.
 name: OpenHands Task
 
 on:
+  schedule:
+    - cron: "0 7 * * 1,4"
   workflow_dispatch:
     inputs:
       task:
-        description: "Aufgabe in natuerlicher Sprache"
-        required: true
+        description: "Aufgabe in natuerlicher Sprache (leer = Standard-Autonom-Wache-Auftrag)"
+        required: false
+        default: ""
       model:
         description: "Modell (leer = Routen-Standard: OpenRouter qwen3.8-27b:free / OpenAI gpt-4o-mini)"
         required: false
@@ -44,9 +54,23 @@ jobs:
           uv tool install openhands --python 3.12
           openhands --version
 
+      - name: Aufgabe bestimmen
+        env:
+          TASK_INPUT: ${{ inputs.task }}
+        run: |
+          if [ -n "$TASK_INPUT" ]; then
+            TASK="$TASK_INPUT"
+          else
+            TASK="Autonom-Wache-Sprint: Halte das Projekt Agenten-Villa funktionsfaehig und fehlerfrei (pruefe build/lint/tests). Optimiere danach gezielt Grafik und Optik (UI-Feinschliff, Konsistenz, Lesbarkeit, responsives Layout) UND/ODER baue sinnvolle Werkzeuge/Features/Tools fuer die Nutzer aus. Waehle max. 1-3 konkrete, klar begrenzte Aenderungen fuer diesen Lauf (nicht mehr) - lieber wenige saubere Verbesserungen als viele halbe. Ignoriere offene GitHub Issues/PRs nicht, falls vorhanden; nimm sie als erste Quelle fuer Verbesserungsideen."
+          fi
+          {
+            echo "TASK<<'EOF_TASK'"
+            echo "$TASK"
+            echo "EOF_TASK"
+          } >> "$GITHUB_ENV"
+
       - name: OpenHands headless ausfuehren
         env:
-          TASK: ${{ inputs.task }}
           MODEL: ${{ inputs.model }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -70,24 +94,34 @@ jobs:
           export LLM_MODEL="$MODEL"
           set -o pipefail
           openhands --headless --override-with-envs \
-            -t "$TASK -- WICHTIG: Aendere nur Dateien im Workspace. Fuehre KEIN git commit, git push oder gh-Befehl aus; das uebernimmt der Workflow. Fuehre Tests aus, wenn eine package.json existiert." 2>&1 | tee openhands-run.log
+            -t "$TASK -- WICHTIG: Aendere nur Dateien im Workspace. Fasse dich auf max. 1-3 fokussierte Aenderungen in diesem Lauf. Fasse NIEMALS Dateien unter .github/workflows/ an und aendere/erzeuge KEINE Secrets, .env-Dateien oder Zugangsdaten. Fuehre KEIN git commit, git push oder gh-Befehl aus; das uebernimmt der Workflow. Fuehre Tests aus, wenn eine package.json existiert." 2>&1 | tee openhands-run.log
           if grep -E "litellm\.\w+Error|no credits remaining" openhands-run.log; then
             echo "::error::LLM-Aufruf fehlgeschlagen (Credits/Key) - siehe Log oben"
             exit 1
           fi
           python3 -c 'import glob,json,sys; files=glob.glob("/home/runner/.openhands/conversations/*/events/*.json"); errs=[(d.get("detail") or d.get("code")) for f in files for d in [json.load(open(f))] if d.get("kind")=="ConversationErrorEvent"]; print(("::error::OpenHands brach ab: " + " | ".join(map(str,errs))) if errs else ""); sys.exit(1 if errs else 0)'
 
+      - name: Workflow-/Secret-Dateien absichern (Sicherheitsnetz)
+        run: |
+          cd workspace
+          # Autonom-Wache darf laut Vorgabe keine Workflows oder Secrets aendern.
+          # Falls OpenHands trotzdem etwas unter .github/workflows/ beruehrt hat,
+          # wird das vor dem Commit verworfen statt den Lauf abzubrechen.
+          if ! git diff --quiet -- .github/workflows/ 2>/dev/null; then
+            echo "::warning::Aenderungen unter .github/workflows/ wurden verworfen (nicht erlaubt fuer die Autonom-Wache)."
+            git checkout -- .github/workflows/
+          fi
+
       - name: Aenderungen als Draft-PR einreichen
         env:
           GH_TOKEN: ${{ secrets.OPENHANDS_GH_PAT }}
-          TASK_SUBJECT: ${{ inputs.task }}
         run: |
           cd workspace
           if [ -z "$(git status --porcelain)" ]; then
             echo "OpenHands hat keine Aenderungen hinterlassen - kein PR noetig."
             exit 0
           fi
-          export TASK_SUBJECT=$(printf '%s' "$TASK_SUBJECT" | head -c 60 | tr '\n' ' ')
+          TASK_SUBJECT=$(printf '%s' "$TASK" | head -c 60 | tr '\n' ' ')
           git add -A
           git commit -m "openhands: $TASK_SUBJECT"
           git push origin "$BRANCH"
