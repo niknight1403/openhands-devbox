@@ -1,20 +1,24 @@
-# OpenHands im GitHub Codespace — startet automatisch beim Codespace-Start
+# OpenHands Agent Canvas im Codespace mit verpflichtendem Backend-API-Key
 services:
   openhands:
-    image: ghcr.io/all-hands-ai/openhands:latest
-    container_name: openhands-app
+    image: ghcr.io/openhands/agent-canvas:1.26.0
+    container_name: openhands-agent-canvas
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "8000:8000"
     environment:
-      - LOG_LEVEL=info
-      # Kostenlose Modellroute: OpenRouter Free (Key als Codespace-Secret OPENROUTER_API_KEY)
-      - LLM_API_KEY=${OPENROUTER_API_KEY:-}
-      - LLM_BASE_URL=https://openrouter.ai/api/v1
-      # PAT mit repo-Rechten als Codespace-Secret OPENHANDS_GH_PAT
-      - GITHUB_TOKEN=${OPENHANDS_GH_PAT:-}
+      # Der Key wird lokal in der ignorierten .env erzeugt; kein LAN-Session-Key im HTML.
+      LOCAL_BACKEND_API_KEY: ${LOCAL_BACKEND_API_KEY:?Starte bash scripts/bootstrap-codespace.sh}
+      PROJECTS_PATH: /workspaces/openhands-devbox
+      LLM_API_KEY: ${OPENROUTER_API_KEY:-}
+      LOG_LEVEL: info
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./openhands-state:/.openhands-state
+      # Gleicher absoluter Pfad in Codespace-Host und Canvas-Container für Docker-Sandbox-Mounts.
+      - .:/workspaces/openhands-devbox
+      - openhands_state:/home/openhands/.openhands
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+volumes:
+  openhands_state:

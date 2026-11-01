@@ -1,14 +1,4 @@
-# OpenHands Task — vom Handy startbar (Repo → Actions → OpenHands Task → Run workflow)
-# Arbeitet auf niknight1403/Agenten-Villa: Ergebnis landet als Draft-PR auf einem agent/*-Branch.
-# Nutzt das offizielle OpenHands-CLI (PyPI: openhands) im Headless-Modus, siehe
-# https://docs.openhands.dev/openhands/usage/cli/installation.md
-#
-# Autonom-Wache: laeuft automatisch Mo+Do 09:00 Europe/Berlin (cron ist UTC;
-# 7:00 UTC = 9:00 Sommerzeit / 8:00 Winterzeit - bei Bedarf anpassen).
-# Ohne manuelle Eingabe nutzt der geplante Lauf eine feste Standardaufgabe
-# (siehe DEFAULT_TASK unten): Projekt funktionsfaehig halten, Grafik/Optik
-# optimieren, Werkzeuge/Features sinnvoll ausbauen - max. 1-3 fokussierte
-# Aenderungen, keine Workflow- oder Secret-Aenderungen, nie direkt auf main.
+# OpenHands Superagent — mobil startbar, mit isolierten Rollenläufen und Draft-PR
 name: OpenHands Task
 
 on:
@@ -17,26 +7,53 @@ on:
   workflow_dispatch:
     inputs:
       task:
-        description: "Aufgabe in natuerlicher Sprache (leer = Standard-Autonom-Wache-Auftrag)"
+        description: "Aufgabe in natürlicher Sprache (leer = begrenzter Autonom-Wache-Auftrag)"
         required: false
         default: ""
+        type: string
+      profile:
+        description: "Arbeitsmodus für den Agentenlauf"
+        required: true
+        default: superagent
+        type: choice
+        options:
+          - superagent
+          - implementer
+          - frontend
+          - security
+          - quality
       model:
-        description: "Modell (leer = Routen-Standard: OpenRouter qwen3.8-27b:free / OpenAI gpt-4o-mini)"
+        description: "LiteLLM-Modell-ID (leer = Anbieterstandard)"
         required: false
         default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openhands-agenten-villa
+  cancel-in-progress: false
 
 jobs:
   openhands:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 90
     steps:
-      - name: Agenten-Villa auschecken
+      - name: Devbox-Prompts und Skills auschecken
+        uses: actions/checkout@v4
+        with:
+          path: control
+          persist-credentials: false
+
+      - name: Zielprojekt auschecken
+        id: target_checkout
         uses: actions/checkout@v4
         with:
           repository: niknight1403/Agenten-Villa
-          token: ${{ secrets.OPENHANDS_GH_PAT }}
           ref: main
           path: workspace
+          persist-credentials: false
 
       - name: agent/*-Branch anlegen
         run: |
@@ -47,86 +64,161 @@ jobs:
           echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
           git checkout -b "$BRANCH"
 
-      - name: OpenHands CLI installieren (offizieller Weg, uv + PyPI)
+      - name: Guardrail-Sanitizer testen
+        run: python3 -m unittest discover -s control/tests -p 'test_*.py' -v
+
+      - name: OpenHands CLI installieren
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/.local/bin:$PATH"
           uv tool install openhands --python 3.12
           openhands --version
 
-      - name: Aufgabe bestimmen
+      - name: Skills-Pack in das Zielprojekt übernehmen
+        run: |
+          mkdir -p workspace/.agents/skills
+          cp -a control/.agents/skills/. workspace/.agents/skills/
+
+      - name: Aufgabe und Profil vorbereiten
         env:
           TASK_INPUT: ${{ inputs.task }}
+          PROFILE_INPUT: ${{ inputs.profile }}
         run: |
-          if [ -n "$TASK_INPUT" ]; then
-            TASK="$TASK_INPUT"
-          else
-            TASK="Autonom-Wache-Sprint: Halte das Projekt Agenten-Villa funktionsfaehig und fehlerfrei (pruefe build/lint/tests). Optimiere danach gezielt Grafik und Optik (UI-Feinschliff, Konsistenz, Lesbarkeit, responsives Layout) UND/ODER baue sinnvolle Werkzeuge/Features/Tools fuer die Nutzer aus. Waehle max. 1-3 konkrete, klar begrenzte Aenderungen fuer diesen Lauf (nicht mehr) - lieber wenige saubere Verbesserungen als viele halbe. Ignoriere offene GitHub Issues/PRs nicht, falls vorhanden; nimm sie als erste Quelle fuer Verbesserungsideen."
+          TASK="$TASK_INPUT"
+          if [ -z "$TASK" ]; then
+            TASK="Autonom-Wache-Sprint: Halte Agenten-Villa funktionsfähig. Prüfe die vorhandenen Build-, Lint- und Test-Kommandos. Wähle anschließend höchstens 1-3 klar begrenzte Verbesserungen aus echten Projektbedürfnissen, etwa Fehlerkorrektur, Sicherheit, Bedienbarkeit oder sinnvolle Werkzeuge. Ändere keine Workflow- oder Secret-Dateien und pushe nie direkt auf main."
           fi
+          PROFILE="${PROFILE_INPUT:-superagent}"
+          case "$PROFILE" in
+            superagent|implementer|frontend|security|quality) ;;
+            *) echo "::error::Unbekanntes Profil"; exit 2 ;;
+          esac
+          TASK_B64="$(printf '%s' "$TASK" | base64 -w 0)"
           {
-            echo "TASK<<'EOF_TASK'"
-            echo "$TASK"
-            echo "EOF_TASK"
+            echo "TASK_B64=$TASK_B64"
+            echo "PROFILE=$PROFILE"
           } >> "$GITHUB_ENV"
 
-      - name: OpenHands headless ausfuehren
+      - name: OpenHands-Superagent ausführen
         env:
-          MODEL: ${{ inputs.model }}
+          MODEL_INPUT: ${{ inputs.model }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
+          set -euo pipefail
           if [ -n "$OPENROUTER_API_KEY" ]; then
-            export LLM_KEY="$OPENROUTER_API_KEY" LLM_URL="https://openrouter.ai/api/v1"
-            [ -z "$MODEL" ] && MODEL="openrouter/qwen/qwen3.8-27b:free"
+            export LLM_API_KEY="$OPENROUTER_API_KEY"
+            export LLM_BASE_URL="https://openrouter.ai/api/v1"
+            MODEL="${MODEL_INPUT:-openrouter/qwen/qwen3.8-27b:free}"
           elif [ -n "$OPENAI_API_KEY" ]; then
-            export LLM_KEY="$OPENAI_API_KEY" LLM_URL="https://api.openai.com/v1"
-            [ -z "$MODEL" ] && MODEL="gpt-4o-mini"
+            export LLM_API_KEY="$OPENAI_API_KEY"
+            export LLM_BASE_URL="https://api.openai.com/v1"
+            MODEL="${MODEL_INPUT:-gpt-4o-mini}"
           else
-            echo "::error::Weder OPENROUTER_API_KEY noch OPENAI_API_KEY als Secret hinterlegt"
+            echo "::error::Weder OPENROUTER_API_KEY noch OPENAI_API_KEY als Action-Secret hinterlegt"
             exit 1
           fi
-          echo "Route: $LLM_URL | Modell: $MODEL"
-          cd workspace
-          export SANDBOX_USER_ID=$(id -u)
-          export SANDBOX_VOLUMES="$PWD:/workspace:rw"
-          export LLM_API_KEY="$LLM_KEY"
-          export LLM_BASE_URL="$LLM_URL"
           export LLM_MODEL="$MODEL"
-          set -o pipefail
-          openhands --headless --override-with-envs \
-            -t "$TASK -- WICHTIG: Aendere nur Dateien im Workspace. Fasse dich auf max. 1-3 fokussierte Aenderungen in diesem Lauf. Fasse NIEMALS Dateien unter .github/workflows/ an und aendere/erzeuge KEINE Secrets, .env-Dateien oder Zugangsdaten. Fuehre KEIN git commit, git push oder gh-Befehl aus; das uebernimmt der Workflow. Fuehre Tests aus, wenn eine package.json existiert." 2>&1 | tee openhands-run.log
-          if grep -E "litellm\.\w+Error|no credits remaining" openhands-run.log; then
-            echo "::error::LLM-Aufruf fehlgeschlagen (Credits/Key) - siehe Log oben"
-            exit 1
-          fi
-          python3 -c 'import glob,json,sys; files=glob.glob("/home/runner/.openhands/conversations/*/events/*.json"); errs=[(d.get("detail") or d.get("code")) for f in files for d in [json.load(open(f))] if d.get("kind")=="ConversationErrorEvent"]; print(("::error::OpenHands brach ab: " + " | ".join(map(str,errs))) if errs else ""); sys.exit(1 if errs else 0)'
+          echo "Modellroute gewählt; Zugangsdaten werden nicht ausgegeben."
 
-      - name: Workflow-/Secret-Dateien absichern (Sicherheitsnetz)
-        run: |
-          cd workspace
-          # Autonom-Wache darf laut Vorgabe keine Workflows oder Secrets aendern.
-          # Falls OpenHands trotzdem etwas unter .github/workflows/ beruehrt hat,
-          # wird das vor dem Commit verworfen statt den Lauf abzubrechen.
-          if ! git diff --quiet -- .github/workflows/ 2>/dev/null; then
-            echo "::warning::Aenderungen unter .github/workflows/ wurden verworfen (nicht erlaubt fuer die Autonom-Wache)."
-            git checkout -- .github/workflows/
-          fi
+          TASK="$(printf '%s' "$TASK_B64" | base64 --decode)"
+          GUIDANCE="$(cat control/AGENTS.md)"
+          BASE_PROMPT="${GUIDANCE}"$'\n\n## Konkreter Nutzerauftrag\n'"${TASK}"$'\n\n## Grenzen dieses Laufs\nArbeite ausschließlich in /workspace. Verwende relevante Skills unter .agents/skills/. Ändere keine Dateien unter .github/workflows/, keine Secrets, .env-Dateien oder Zugangsdaten. Read-only Git-Inspektionen wie status, diff und log sind erlaubt; führe keine Git-Schreibkommandos, gh- oder Veröffentlichungs-Kommandos aus. Der äußere Workflow verwaltet Branch und Draft-PR. Begrenze den Umfang auf maximal drei zusammenhängende Änderungen.'
 
-      - name: Aenderungen als Draft-PR einreichen
+          run_agent() {
+            local role="$1"
+            local instructions="$2"
+            local prompt
+            local log_path="$RUNNER_TEMP/openhands-${role}.log"
+            local exit_code=0
+            prompt="${BASE_PROMPT}"$'\n\n## Deine Rolle in diesem Durchlauf\n'"${instructions}"
+            echo "::group::OpenHands-Rolle: ${role}"
+            cd workspace
+            if openhands --headless --override-with-envs -t "$prompt" >"$log_path" 2>&1; then
+              exit_code=0
+            else
+              exit_code=$?
+            fi
+            cd "$GITHUB_WORKSPACE"
+            echo "::endgroup::"
+            if [ "$exit_code" -ne 0 ] || grep -Eq "litellm\.[[:alnum:]_]+Error|no credits remaining" "$log_path"; then
+              echo "::error::OpenHands-Rolle ${role} fehlgeschlagen; sensible Roh-Logs werden nicht ausgegeben."
+              return 1
+            fi
+          }
+
+          case "$PROFILE" in
+            superagent)
+              run_agent architect "Analysiere Aufgabe und Repo. Schreibe einen knappen, ausführbaren Plan ausschließlich nach .openhands-plan.md. Ändere in dieser Phase keinen Produktcode. Nenne betroffene Dateien, Risiken und passende Checks."
+              run_agent implementer "Lies .openhands-plan.md. Implementiere den Auftrag vollständig innerhalb des Plans. Verwende vorhandene Projektkonventionen und führe passende Checks aus. Schreibe keinen Commit."
+              run_agent reviewer "Prüfe den finalen Diff gegen Nutzerauftrag und .openhands-plan.md. Suche nach bestätigten funktionalen, Sicherheits- und Regressionfehlern. Behebe nur eng begrenzte bestätigte Probleme und führe betroffene Checks erneut aus."
+              ;;
+            implementer)
+              run_agent implementer "Plane kurz intern und setze dann die konkrete Nutzeraufgabe im vorhandenen Stil um. Prüfe den Diff und führe passende vorhandene Tests aus."
+              ;;
+            frontend)
+              run_agent frontend "Fokussiere auf die konkret angefragte Oberfläche. Nutze den Frontend-/UX-Skill, vorhandene Komponenten und responsive Konventionen. Ergänze verständliche Lade-, Leer-, Erfolgs- und Fehlerzustände, wo sie relevant sind. Prüfe die betroffenen Builds oder UI-Checks."
+              ;;
+            security)
+              run_agent security "Fokussiere auf die konkret angefragte Sicherheitsverbesserung. Nutze den Security-Skill. Prüfe geringstmögliche Rechte, Eingaben, Authentifizierung, Secret-Handhabung und sensible Logs. Führe passende Sicherheits- und Regressionchecks aus."
+              ;;
+            quality)
+              run_agent quality "Fokussiere auf Qualität, Stabilität und Fehlerbehebung. Nutze den Quality-Engineering-Skill. Ermittle vorhandene Checks, behebe bestätigte Probleme und führe passende Tests, Lint- und Build-Kommandos aus."
+              ;;
+          esac
+
+          python3 - <<'PY'
+          import glob, json, sys
+          errors = []
+          for path in glob.glob("/home/runner/.openhands/conversations/*/events/*.json"):
+              try:
+                  with open(path, encoding="utf-8") as stream:
+                      event = json.load(stream)
+              except (OSError, json.JSONDecodeError):
+                  continue
+              if event.get("kind") == "ConversationErrorEvent":
+                  errors.append(True)
+          if errors:
+              print(f"::error::OpenHands meldete {len(errors)} Fehler; Details werden nicht in Actions-Logs ausgegeben.")
+              sys.exit(1)
+          print("OpenHands-Event-Prüfung abgeschlossen.")
+          PY
+
+      - name: Geschützte Pfade wiederherstellen
+        if: always() && steps.target_checkout.outcome == 'success'
+        run: python3 control/scripts/restore-protected-changes.py workspace
+
+      - name: Änderungen als Draft-PR einreichen
+        if: success()
         env:
           GH_TOKEN: ${{ secrets.OPENHANDS_GH_PAT }}
         run: |
+          set -euo pipefail
           cd workspace
+          cleanup() {
+            rm -f "$RUNNER_TEMP/openhands-askpass"
+            unset GH_TOKEN || true
+          }
+          trap cleanup EXIT
           if [ -z "$(git status --porcelain)" ]; then
-            echo "OpenHands hat keine Aenderungen hinterlassen - kein PR noetig."
+            echo "OpenHands hat keine PR-fähigen Änderungen hinterlassen."
             exit 0
           fi
-          TASK_SUBJECT=$(printf '%s' "$TASK" | head -c 60 | tr '\n' ' ')
           git add -A
-          git commit -m "openhands: $TASK_SUBJECT"
-          git push origin "$BRANCH"
+          git commit -m "openhands: ${PROFILE} development update"
+          cat > "$RUNNER_TEMP/openhands-askpass" <<'ASKPASS'
+          #!/bin/sh
+          case "$1" in
+            *Username*) printf '%s\n' "x-access-token" ;;
+            *Password*) printf '%s\n' "$GH_TOKEN" ;;
+            *) exit 1 ;;
+          esac
+          ASKPASS
+          chmod 700 "$RUNNER_TEMP/openhands-askpass"
+          GIT_ASKPASS="$RUNNER_TEMP/openhands-askpass" GIT_TERMINAL_PROMPT=0 git push origin "$BRANCH"
           gh pr create \
             --repo niknight1403/Agenten-Villa \
             --base main --head "$BRANCH" --draft \
-            --title "OpenHands: $TASK_SUBJECT" \
-            --body "Automatisch von OpenHands (openhands-devbox) erzeugt. Task: $TASK_SUBJECT - Bitte reviewen, nie direkt auf main mergen."
+            --title "OpenHands: ${PROFILE} development update" \
+            --body "Automatisch von der OpenHands Devbox erstellt. Profil: ${PROFILE}. Keine Aufgabeninhalte in PR-Metadaten. Bitte Änderungen und Tests vor dem Merge prüfen."
