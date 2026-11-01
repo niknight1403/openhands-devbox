@@ -5,8 +5,15 @@
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
   "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "OpenHands UI",
+      "onAutoForward": "openBrowser",
+      "visibility": "private"
+    }
+  },
   "postCreateCommand": "mkdir -p openhands-state",
-  "postStartCommand": "docker compose up -d && echo 'OpenHands startet — Port 3000 ist gleich erreichbar.'",
+  "postStartCommand": "docker compose up -d && echo 'OpenHands startet — UI auf Port 3000, sobald der Healthcheck gruen ist.'",
   "customizations": {
     "codespaces": {
       "openInBrowser": false

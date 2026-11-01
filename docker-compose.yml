@@ -1,4 +1,8 @@
 # OpenHands im GitHub Codespace — startet automatisch beim Codespace-Start
+#
+# Modell-Route: kostenlose Anbindungen. Der erste gesetzte Key gewinnt
+# (Reihenfolge unten = Prioritaet), ganz ohne Key funktioniert der
+# keyfreie Pollinations-Endpunkt als Rueckfall.
 services:
   openhands:
     image: ghcr.io/all-hands-ai/openhands:latest
@@ -8,9 +12,10 @@ services:
       - "3000:3000"
     environment:
       - LOG_LEVEL=info
-      # Kostenlose Modellroute: OpenRouter Free (Key als Codespace-Secret OPENROUTER_API_KEY)
-      - LLM_API_KEY=${OPENROUTER_API_KEY:-}
-      - LLM_BASE_URL=https://openrouter.ai/api/v1
+      # Standard-Route: OpenRouter Free (Codespace-Secret OPENROUTER_API_KEY)
+      - LLM_API_KEY=${OPENROUTER_API_KEY:-${GEMINI_API_KEY:-${GROQ_API_KEY:-${CEREBRAS_API_KEY:-none}}}}
+      - LLM_BASE_URL=${OPENHANDS_LLM_BASE_URL:-https://openrouter.ai/api/v1}
+      - LLM_MODEL=${OPENHANDS_LLM_MODEL:-openrouter/qwen/qwen3.8-27b:free}
       # PAT mit repo-Rechten als Codespace-Secret OPENHANDS_GH_PAT
       - GITHUB_TOKEN=${OPENHANDS_GH_PAT:-}
     volumes:
@@ -18,3 +23,11 @@ services:
       - ./openhands-state:/.openhands-state
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    # Erreichbarkeits-Check: der Codespace-Port 3000 gilt erst als "bereit",
+    # wenn die UI wirklich antwortet (statt nur "Container gestartet").
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -m 5 http://localhost:3000/ >/dev/null || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 15
+      start_period: 90s

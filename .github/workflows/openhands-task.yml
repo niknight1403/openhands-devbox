@@ -3,6 +3,12 @@
 # Nutzt das offizielle OpenHands-CLI (PyPI: openhands) im Headless-Modus, siehe
 # https://docs.openhands.dev/openhands/usage/cli/installation.md
 #
+# Modell-Route: kostenlose Kaskade (devbox-Skript .github/scripts/waehle_gratis_route.sh)
+# probiert OpenRouter-Free, Gemini-Free, Groq, Cerebras, Mistral, Hugging Face und
+# zuletzt den keyfreien Pollinations-Endpunkt. Die erste Route, die auf einen
+# 1-Token-Ping mit HTTP 200 antwortet, wird verwendet — dadurch braucht der Lauf
+# nicht zwingend ein Secret, und ein toter Anbieter blockiert nicht mehr.
+#
 # Autonom-Wache: laeuft automatisch Mo+Do 09:00 Europe/Berlin (cron ist UTC;
 # 7:00 UTC = 9:00 Sommerzeit / 8:00 Winterzeit - bei Bedarf anpassen).
 # Ohne manuelle Eingabe nutzt der geplante Lauf eine feste Standardaufgabe
@@ -21,7 +27,11 @@ on:
         required: false
         default: ""
       model:
-        description: "Modell (leer = Routen-Standard: OpenRouter qwen3.8-27b:free / OpenAI gpt-4o-mini)"
+        description: "Modell-ID ueberschreiben (leer = Modell der gewaehlten Gratis-Route)"
+        required: false
+        default: ""
+      provider:
+        description: "Route erzwingen: openrouter | gemini | groq | cerebras | mistral | huggingface | pollinations (leer = Kaskade)"
         required: false
         default: ""
 
@@ -30,6 +40,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
+      - name: Devbox-Werkzeuge auschecken
+        uses: actions/checkout@v4
+        with:
+          path: devbox
+
       - name: Agenten-Villa auschecken
         uses: actions/checkout@v4
         with:
@@ -69,34 +84,41 @@ jobs:
             echo "EOF_TASK"
           } >> "$GITHUB_ENV"
 
+      - name: Gratis-Route waehlen (Kaskade mit Live-Ping)
+        env:
+          PREFERRED: ${{ inputs.provider }}
+          INPUT_MODEL: ${{ inputs.model }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: bash devbox/.github/scripts/waehle_gratis_route.sh
+
       - name: OpenHands headless ausfuehren
         env:
-          MODEL: ${{ inputs.model }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          if [ -n "$OPENROUTER_API_KEY" ]; then
-            export LLM_KEY="$OPENROUTER_API_KEY" LLM_URL="https://openrouter.ai/api/v1"
-            [ -z "$MODEL" ] && MODEL="openrouter/qwen/qwen3.8-27b:free"
-          elif [ -n "$OPENAI_API_KEY" ]; then
-            export LLM_KEY="$OPENAI_API_KEY" LLM_URL="https://api.openai.com/v1"
-            [ -z "$MODEL" ] && MODEL="gpt-4o-mini"
-          else
-            echo "::error::Weder OPENROUTER_API_KEY noch OPENAI_API_KEY als Secret hinterlegt"
+          # LLM_URL/LLM_MODEL/LLM_KEY kommen aus der Routen-Kaskade (GITHUB_ENV).
+          if [ -z "${LLM_URL:-}" ] || [ -z "${LLM_MODEL:-}" ]; then
+            echo "::error::Keine Route aus der Kaskade uebernommen - siehe Schritt davor."
             exit 1
           fi
-          echo "Route: $LLM_URL | Modell: $MODEL"
+          # Sicherheitsnetz: LLM_KEY ist bei keyfreien Routen leer, litellm
+          # verlangt aber einen nicht-leeren Wert.
+          export LLM_API_KEY="${LLM_KEY:-none}"
+          export LLM_BASE_URL="$LLM_URL"
+          echo "Route: ${LLM_ROUTE_NAME:-?} | ${LLM_URL} | Modell: ${LLM_MODEL}"
           cd workspace
           export SANDBOX_USER_ID=$(id -u)
           export SANDBOX_VOLUMES="$PWD:/workspace:rw"
-          export LLM_API_KEY="$LLM_KEY"
-          export LLM_BASE_URL="$LLM_URL"
-          export LLM_MODEL="$MODEL"
           set -o pipefail
           openhands --headless --override-with-envs \
             -t "$TASK -- WICHTIG: Aendere nur Dateien im Workspace. Fasse dich auf max. 1-3 fokussierte Aenderungen in diesem Lauf. Fasse NIEMALS Dateien unter .github/workflows/ an und aendere/erzeuge KEINE Secrets, .env-Dateien oder Zugangsdaten. Fuehre KEIN git commit, git push oder gh-Befehl aus; das uebernimmt der Workflow. Fuehre Tests aus, wenn eine package.json existiert." 2>&1 | tee openhands-run.log
           if grep -E "litellm\.\w+Error|no credits remaining" openhands-run.log; then
-            echo "::error::LLM-Aufruf fehlgeschlagen (Credits/Key) - siehe Log oben"
+            echo "::error::LLM-Aufruf fehlgeschlagen (Credits/Key) auf Route ${LLM_ROUTE_NAME:-?} - siehe Log oben"
             exit 1
           fi
           python3 -c 'import glob,json,sys; files=glob.glob("/home/runner/.openhands/conversations/*/events/*.json"); errs=[(d.get("detail") or d.get("code")) for f in files for d in [json.load(open(f))] if d.get("kind")=="ConversationErrorEvent"]; print(("::error::OpenHands brach ab: " + " | ".join(map(str,errs))) if errs else ""); sys.exit(1 if errs else 0)'
@@ -129,4 +151,4 @@ jobs:
             --repo niknight1403/Agenten-Villa \
             --base main --head "$BRANCH" --draft \
             --title "OpenHands: $TASK_SUBJECT" \
-            --body "Automatisch von OpenHands (openhands-devbox) erzeugt. Task: $TASK_SUBJECT - Bitte reviewen, nie direkt auf main mergen."
+            --body "Automatisch von OpenHands (openhands-devbox) erzeugt. Task: $TASK_SUBJECT - Route: ${LLM_ROUTE_NAME:-?} (${LLM_MODEL}) - Bitte reviewen, nie direkt auf main mergen."
