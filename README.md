@@ -7,7 +7,7 @@ Eine mobile, autonome Entwicklungsumgebung auf Basis der offiziellen OpenHands A
 - **Agent Canvas:** aktuelle OpenHands-Steueroberfläche mit LLM-/Agent-Profilen, MCP-Server-Einstellungen und Projektkontext.
 - **Superagenten-Lauf:** drei getrennte OpenHands-CLI-Durchläufe — Architektur/Plan, Implementierung und Qualitätsreview — mit gemeinsamem Workspace.
 - **Rollenprofile:** zusätzlich auswählbare Modi für Implementierung, Frontend, Sicherheit und Qualität.
-- **Skills-Pack:** projektübergreifend übertragbare Skills unter `.agents/skills/`; die Action kopiert sie bei jedem Lauf in das Zielprojekt.
+- **Skills-Pack:** sechs projektübergreifend übertragbare Skills unter `.agents/skills/`, darunter [automatisches Refactoring](.agents/skills/openhands-devbox-automated-refactoring/SKILL.md); die Action kopiert sie bei jedem Lauf in das Zielprojekt.
 - **Sicherheitsnetz:** Agenten dürfen im Zielprojekt weder Workflows noch Secrets-Dateien ändern. Der Workflow verwirft solche Änderungen, erstellt einen Branch und öffnet bei Änderungen einen Draft-PR. Er pusht nie auf `main`.
 - **Zugriffsschutz:** Canvas verwendet einen lokal generierten Backend-API-Key. Der Codespaces-Port erhält private Sichtbarkeit als Standard; selbst wenn ein Port versehentlich öffentlich gestellt wird, ist der Backend-Zugriff weiterhin durch den API-Key geschützt.
 
