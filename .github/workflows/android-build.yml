@@ -7,12 +7,15 @@ on:
     branches:
       - main
       - "agent/**"
+    tags:
+      - "v*"
     paths:
       - "android/**"
       - ".github/workflows/android-build.yml"
   pull_request:
     paths:
       - "android/**"
+      - ".github/workflows/android-build.yml"
 
 permissions:
   contents: write
