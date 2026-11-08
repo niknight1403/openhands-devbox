@@ -4,6 +4,7 @@ Eine mobile, autonome Entwicklungsumgebung auf Basis der offiziellen OpenHands A
 
 ## Was enthalten ist
 
+- **Android-App:** installierbare Steuer-App (`android/`). Eine Chat-Eingabe startet einen vollständigen Entwicklungsdurchlauf, zeigt die Agentenschritte live, öffnet den Draft-PR und kann ihn im Autonom-Modus mergen und nachbessern lassen.
 - **Agent Canvas:** aktuelle OpenHands-Steueroberfläche mit LLM-/Agent-Profilen, MCP-Server-Einstellungen und Projektkontext.
 - **Superagenten-Lauf:** drei getrennte OpenHands-CLI-Durchläufe — Architektur/Plan, Implementierung und Qualitätsreview — mit gemeinsamem Workspace.
 - **Rollenprofile:** zusätzlich auswählbare Modi für Implementierung, Frontend, Sicherheit und Qualität.
@@ -11,7 +12,21 @@ Eine mobile, autonome Entwicklungsumgebung auf Basis der offiziellen OpenHands A
 - **Sicherheitsnetz:** Agenten dürfen im Zielprojekt weder Workflows noch Secrets-Dateien ändern. Der Workflow verwirft solche Änderungen, erstellt einen Branch und öffnet bei Änderungen einen Draft-PR. Er pusht nie auf `main`.
 - **Zugriffsschutz:** Canvas verwendet einen lokal generierten Backend-API-Key. Der Codespaces-Port erhält private Sichtbarkeit als Standard; selbst wenn ein Port versehentlich öffentlich gestellt wird, ist der Backend-Zugriff weiterhin durch den API-Key geschützt.
 
-Der Agenten-Workflow bearbeitet standardmäßig `niknight1403/Agenten-Villa`. Das Ziel wird absichtlich nicht frei eingegeben, damit ein Tippfehler oder Prompt keine beliebigen Repositories mit dem hinterlegten PAT öffnen kann.
+Der Agenten-Workflow bearbeitet standardmäßig `niknight1403/Agenten-Villa`. Das Ziel wird bewusst nur aus einer festen Liste freigegebener Repositories gewählt (Workflow-Eingabe `target`), damit ein Tippfehler oder Prompt keine beliebigen Repositories mit dem hinterlegten PAT öffnen kann.
+
+Vor jedem Lauf prüft `scripts/waehle_modell.py` die Modellroute mit einem echten Mini-Aufruf: Wunschmodell, dann die aktuell kostenlosen OpenRouter-Modelle (Code-Modelle zuerst), dann OpenAI, zuletzt eine keyfreie Route. Nur eine antwortende Route startet den Agenten; sonst bricht der Lauf mit klarer Meldung ab. Ein toter Modellname kann damit keinen stillen Fehllauf mehr erzeugen.
+
+## Android-App bauen und installieren
+
+Die App liegt in `android/` (Kotlin, Jetpack Compose, minSdk 26). Der Workflow **Android APK** baut bei jeder Änderung an `android/` ein Debug-APK und legt es als Artefakt `openhands-devbox-apk` ab; bei einem Tag wird es zusätzlich als Release-Asset veröffentlicht. Lokal:
+
+```bash
+cd android && ./gradlew assembleDebug
+```
+
+In der App in den Einstellungen einen Fine-grained Token (Actions, Contents, Pull requests: je read and write) eintragen, Steuer-Repo und Zielprojekt prüfen, **Token prüfen** antippen. Danach genügt im Chat eine Aufgabe. Details, Ablauf und Grenzen: [Android-App](docs/ANDROID-APP.md).
+
+Der Autonom-Modus ist eine bewusste Entscheidung: Ohne ihn bleibt jeder Lauf als Draft-PR zur Prüfung liegen. Erst der Schalter **Autonom** mergebarer PRs macht aus dem Chat einen durchlaufenden Auftrag; mit **Folgedurchläufen** prüft ein weiterer Lauf das Ergebnis und schließt Lücken.
 
 ## Vom Android-Handy starten
 
