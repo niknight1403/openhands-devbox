@@ -39,12 +39,20 @@ jobs:
           set -euo pipefail
           # Der Runner liefert das SDK bereits mit; setup-android@v3 scheitert dort am
           # entfernten Paket 'tools'. Fehlende Bestandteile werden direkt nachgezogen.
-          echo "SDK: ${ANDROID_HOME:-${ANDROID_SDK_ROOT:-unbekannt}}"
           SDK_ROOT="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
-          command -v sdkmanager >/dev/null || echo "sdkmanager nicht im PATH"
-          yes | sdkmanager --licenses >/dev/null 2>&1 || true
-          sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0" >/dev/null
-          ls "$SDK_ROOT/platforms" "$SDK_ROOT/build-tools"
+          echo "SDK: $SDK_ROOT"
+          SDKMANAGER="$(command -v sdkmanager || true)"
+          if [ -z "$SDKMANAGER" ]; then
+            SDKMANAGER="$(ls -d "$SDK_ROOT"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -1 || true)"
+          fi
+          echo "sdkmanager: ${SDKMANAGER:-nicht gefunden}"
+          if [ -n "$SDKMANAGER" ]; then
+            (yes | "$SDKMANAGER" --licenses >/dev/null 2>&1) || true
+            "$SDKMANAGER" --install "platform-tools" "platforms;android-34" "build-tools;34.0.0" >/dev/null
+          else
+            echo "::warning::sdkmanager nicht gefunden, vorhandenes SDK wird genutzt"
+          fi
+          ls "$SDK_ROOT/platforms" "$SDK_ROOT/build-tools" || true
 
       - name: Debug-APK bauen
         working-directory: android
