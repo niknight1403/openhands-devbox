@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import ipaddress
 import socket
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -58,6 +59,18 @@ def ist_oeffentlich(adresse: ipaddress._BaseAddress) -> bool:
     )
 
 
+class _SichereWeiterleitung(urllib.request.HTTPRedirectHandler):
+    """Prueft jedes Redirect-Ziel erneut, bevor urllib es abruft."""
+
+    def __init__(self, erlaube_privat: bool = False) -> None:
+        super().__init__()
+        self.erlaube_privat = erlaube_privat
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        pruefe_url(newurl, erlaube_privat=self.erlaube_privat)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def pruefe_url(url: str, erlaube_privat: bool = False) -> str:
     """Gibt die bereinigte URL zurueck oder wirft NetzFehler."""
     bereinigt = (url or "").strip()
@@ -69,8 +82,17 @@ def pruefe_url(url: str, erlaube_privat: bool = False) -> str:
     host = teile.hostname
     if not host:
         raise NetzFehler("Adresse ohne Host")
+    if teile.username is not None or teile.password is not None:
+        raise NetzFehler("Zugangsdaten in URLs sind nicht erlaubt")
+    try:
+        teile.port
+    except ValueError as fehler:
+        raise NetzFehler("Ungueltiger Port in der Adresse") from fehler
     if not erlaube_privat:
-        for adresse in _adressen(host):
+        adressen = _adressen(host)
+        if not adressen:
+            raise NetzFehler(f"Host {host} hat keine aufloesbare IP-Adresse")
+        for adresse in adressen:
             if not ist_oeffentlich(adresse):
                 raise NetzFehler(f"Adresse {adresse} ist nicht oeffentlich")
     return bereinigt
@@ -89,7 +111,10 @@ def laden(
     ziel = pruefe_url(url, erlaube_privat=erlaube_privat)
     anfrage = urllib.request.Request(ziel, headers=KOPFZEILEN)
     try:
-        with urllib.request.urlopen(anfrage, timeout=max_sekunden) as antwort:  # nosec B310 - pruefe_url laesst nur http/https auf oeffentliche Adressen zu
+        opener = urllib.request.build_opener(_SichereWeiterleitung(erlaube_privat))
+        with opener.open(anfrage, timeout=max_sekunden) as antwort:
+            # Defensive Nachpruefung der finalen URL zusaetzlich zum Redirect-Handler.
+            pruefe_url(antwort.geturl(), erlaube_privat=erlaube_privat)
             content_type = (antwort.headers.get("Content-Type") or "").split(";")[0].strip().lower()
             gemeldet = antwort.headers.get("Content-Length")
             if gemeldet and gemeldet.isdigit() and int(gemeldet) > max_bytes:
