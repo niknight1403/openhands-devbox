@@ -159,7 +159,7 @@ class GitHubApi(private val tokenProvider: () -> String) {
 
     suspend fun markReadyForReview(targetRepo: String, number: Int) {
         val body = buildJsonObject { put("draft", false) }
-        runCatching { call(request("/repos/$targetRepo/pulls/$number", "PATCH", body)) }
+        call(request("/repos/$targetRepo/pulls/$number", "PATCH", body))
     }
 
     suspend fun mergePullRequest(targetRepo: String, number: Int, method: String = "squash"): String {
@@ -169,7 +169,10 @@ class GitHubApi(private val tokenProvider: () -> String) {
             val element = json.parseToJsonElement(response) as JsonObject
             element["merged"]?.toString()?.toBoolean() ?: false
         }.getOrDefault(false)
-        return if (merged) "squash-Merge ausgeführt" else "GitHub hat den Merge nicht bestätigt"
+        if (!merged) {
+            throw ApiException(409, "GitHub hat den Merge nicht bestätigt.")
+        }
+        return "squash-Merge ausgeführt"
     }
 
     private fun parseIso(value: String?): Long? {
