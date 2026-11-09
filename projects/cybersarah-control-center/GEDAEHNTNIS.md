@@ -15,6 +15,7 @@ alles andere ist bewusst knapp gehalten, damit es gelesen wird.
 - 2026-11-09 | Lauf 42554062108 (failure) | Route keine | Branch agent/openhands-20261109-030131 | PR keiner | Dateien 1 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/42554062108]
 - 2026-11-09 | Lauf 42554381341 (failure) | Route openai/gpt-oss-120b | Branch agent/openhands-20261109-030506 | PR keiner | Dateien 1 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/42554381341]
 - 2026-11-09 | Lauf 42556430530 (success) | Route openrouter/stealth/crouton-alpha | Branch agent/app-1794194797098 | PR keiner | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/42556430530]
+- 2026-11-09 | Lauf 42556654773 (success) | Route openrouter/stealth/crouton-alpha | Branch agent/app-1794194952883 | PR keiner | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/42556654773]
 
 ## Entscheidungen
 
