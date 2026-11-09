@@ -40,6 +40,7 @@ jobs:
           summary="$RUNNER_TEMP/github-token-check.md"
 
           askpass_datei() { # $1 Zielpfad; liest den Token zur Laufzeit aus PROBE_TOKEN
+            # shellcheck disable=SC2016 # Variablen werden absichtlich im erzeugten Askpass-Skript ausgewertet.
             printf '%s\n' \
               '#!/bin/sh' \
               'case "$1" in' \
