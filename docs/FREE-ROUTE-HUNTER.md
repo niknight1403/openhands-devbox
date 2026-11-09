@@ -112,6 +112,28 @@ Stellschrauben per Umgebung: `HUNTER_PREFER`, `HUNTER_TIMEOUT`,
   Eintragen startet (`HUNTER_DISABLE=1` schaltet das ab, `HUNTER_REFRESH=1`
   sucht neu).
 
+## Wenn eine Route mitten im Lauf ausfällt
+
+Die OpenHands-CLI beendet sich bei Anbieterfehlern mit **Exit 0** und legt den
+Fehler nur als `ConversationErrorEvent` ab. Ein `set -e` merkt davon nichts, und
+der Lauf wäre am Ende rot, ohne je eine Ersatzroute probiert zu haben.
+
+Deshalb wertet `scripts/openhands_events.py` nach jedem Rollenversuch die neuen
+Gesprächsereignisse aus. Es speichert vorher den Stand der Gesprächsordner und
+liest danach nur die neu hinzugekommenen, damit ein alter Fehler nicht erneut
+zuschlägt. Der Exit-Code sagt dem Workflow, was zu tun ist:
+
+| Code | Bedeutung | Reaktion im Workflow |
+| --- | --- | --- |
+| `0` | keine Fehler | Rolle gilt als erfolgreich |
+| `3` | Fehler mit Routenbezug (Kontingent, Modell, Auth, Netz) | Route in `HUNTER_EXCLUDE`, neue Route jagen, Versuch wiederholen (bis `ROUTE_RETRIES`, Standard 2) |
+| `4` | Fehler ohne Routenbezug (Werkzeug, Plan, Datei) | sofortiger Abbruch, ein Anbieterwechsel hilft nicht |
+
+Ausgegeben werden nur maskierte Kurzfassungen; Schlüssel und lange Zeichenketten
+ersetzt das Skript durch `<entfernt>`. Eine globale Prüfung über alle Gespräche
+am Ende gibt es bewusst nicht mehr: Sie würde Fehler bereits verworfener Routen
+erneut melden und einen geretteten Lauf fälschlich rot machen.
+
 ## Grenzen
 
 - Ein HTTP 2xx beim Mini-Aufruf garantiert keinen guten Lauf. Es beweist nur,
@@ -127,5 +149,8 @@ Stellschrauben per Umgebung: `HUNTER_PREFER`, `HUNTER_TIMEOUT`,
 
 `tests/test_free_route_hunter.py` prüft Preisauswertung, Discovery, Ranking,
 Wunschmodell-Auflösung, Kaskadenaufbau, Abbruchverhalten, Env-Ausgabe und dass
-kein Schlüssel in Report oder Log landet. Die Tests laufen offline, ohne
-Netzwerkaufruf.
+kein Schlüssel in Report oder Log landet. `tests/test_openhands_events.py` prüft
+die Fehlerklassifikation, die Maskierung und die Eingrenzung auf neue Gespräche.
+`tests/test_workflow_routes.py` hält fest, dass der Workflow wirklich je Versuch
+auswertet und Fehler ohne Routenbezug sofort abbricht. Die Tests laufen offline,
+ohne Netzwerkaufruf.

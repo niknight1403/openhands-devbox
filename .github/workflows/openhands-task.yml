@@ -261,6 +261,21 @@ jobs:
             grep -Eq "litellm\.[[:alnum:]_]+Error|no credits remaining|rate.?limit|HTTP/1\.1 429|model_not_found|invalid_api_key" "$log_path"
           }
 
+          # Die OpenHands-CLI endet bei Anbieterfehlern mit Exit 0 und legt den
+          # Fehler nur als Ereignis ab. Dieses Skript liest die neuen Ereignisse
+          # und meldet per Exit-Code, ob ein Anbieterwechsel helfen kann.
+          ereignis_code=0
+          pruefe_ereignisse() { # $1 = Stand-Datei vor dem Lauf
+            local stand="$1" code=0
+            if python3 control/scripts/openhands_events.py --since-state "$stand" > "$RUNNER_TEMP/event-check.log" 2>&1; then
+              code=0
+            else
+              code=$?
+            fi
+            cat "$RUNNER_TEMP/event-check.log"
+            return "$code"
+          }
+
           run_agent() {
             local role="$1"
             local instructions="$2"
@@ -272,6 +287,8 @@ jobs:
               prompt="${BASE_PROMPT}"$'\n\n## Deine Rolle in diesem Durchlauf\n'"${instructions}"
               log_path="$RUNNER_TEMP/openhands-${role}-${attempt}.log"
               echo "::group::OpenHands-Rolle: ${role} (Route ${LLM_ROUTE_NAME:-unbekannt}, Versuch $((attempt + 1)))"
+              stand="$RUNNER_TEMP/openhands-${role}-${attempt}.state"
+              python3 control/scripts/openhands_events.py --record "$stand" > /dev/null
               cd workspace
               if openhands --headless --override-with-envs -t "$prompt" >"$log_path" 2>&1; then
                 exit_code=0
@@ -280,8 +297,16 @@ jobs:
               fi
               cd "$GITHUB_WORKSPACE"
               echo "::endgroup::"
-              if [ "$exit_code" -eq 0 ] && ! model_failure "$log_path"; then
+              sleep 2
+              ereignis_code=0
+              pruefe_ereignisse "$stand" || ereignis_code=$?
+              if [ "$exit_code" -eq 0 ] && [ "$ereignis_code" -eq 0 ] && ! model_failure "$log_path"; then
                 return 0
+              fi
+              # Ein Fehler ohne Routenbezug wird durch einen Anbieterwechsel nicht besser.
+              if [ "$ereignis_code" -eq 4 ]; then
+                echo "::error::OpenHands-Rolle ${role} scheiterte an einem Fehler ohne Routenbezug; ein Anbieterwechsel hilft hier nicht."
+                return 1
               fi
               if [ "$attempt" -ge "$ROUTE_RETRIES" ]; then
                 echo "::error::OpenHands-Rolle ${role} fehlgeschlagen; sensible Roh-Logs werden nicht ausgegeben."
@@ -294,7 +319,8 @@ jobs:
                 --env-file "$RUNNER_TEMP/route.env" \
                 --shell-export \
                 --report "$RUNNER_TEMP/route-report-${role}-${attempt}.json"; then
-                echo "::error::Keine Ersatzroute verfügbar; Rolle ${role} wird abgebrochen."
+                echo "::error::Keine Ersatzroute verfuegbar; Rolle ${role} wird abgebrochen."
+                echo "::error::Ohne Modellschluessel bleibt nur die schluesselfreie Route pollinations (1 Antwort je 45 s). Hinterlege ein kostenloses Repository-Secret, etwa GROQ_API_KEY, GEMINI_API_KEY oder OPENROUTER_API_KEY."
                 return 1
               fi
               . "$RUNNER_TEMP/route.env"
@@ -321,27 +347,6 @@ jobs:
               ;;
           esac
 
-          python3 - <<'PY'
-          import glob, json, re, sys
-          REDAKTION = re.compile(r"(sk-|ghp_|github_pat_)[A-Za-z0-9_-]+|[A-Za-z0-9_-]{32,}")
-          errors = []
-          for path in glob.glob("/home/runner/.openhands/conversations/*/events/*.json"):
-              try:
-                  with open(path, encoding="utf-8") as stream:
-                      event = json.load(stream)
-              except (OSError, json.JSONDecodeError):
-                  continue
-              if event.get("kind") == "ConversationErrorEvent":
-                  code = str(event.get("code", "Unbekannt"))
-                  detail = REDAKTION.sub("<entfernt>", str(event.get("detail", "")))[:400]
-                  errors.append((code, detail))
-          if errors:
-              for code, detail in errors:
-                  print(f"::error::OpenHands-Fehler {code}: {detail}")
-              print(f"::error::OpenHands meldete {len(errors)} Fehler.")
-              sys.exit(1)
-          print("OpenHands-Event-Prüfung abgeschlossen.")
-          PY
 
       - name: Geschützte Pfade wiederherstellen
         if: always() && steps.target_checkout.outcome == 'success'
