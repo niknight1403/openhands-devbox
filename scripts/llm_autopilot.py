@@ -31,6 +31,7 @@ import os
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -84,7 +85,12 @@ class CatalogRoute:
         return ""
 
 
-def parse_catalog(payload: object, origin: str, warnings: list[str] | None = None) -> list[CatalogRoute]:
+def parse_catalog(
+    payload: object,
+    origin: str,
+    warnings: list[str] | None = None,
+    allow_credentials: bool = True,
+) -> list[CatalogRoute]:
     """Liest einen Katalog (``{"routes": [...]}``) und verwirft unbrauchbare Einträge."""
     warnings = warnings if warnings is not None else []
     if not isinstance(payload, dict):
@@ -107,11 +113,15 @@ def parse_catalog(payload: object, origin: str, warnings: list[str] | None = Non
         if not name or not model_ids:
             warnings.append(f"{origin}[{index}]: name oder models fehlt")
             continue
-        if not base_url.startswith(("https://", "http://")):
-            warnings.append(f"{origin}[{index}] ({name}): base_url ist keine http(s)-URL")
+        parsed_base = urllib.parse.urlsplit(base_url)
+        if parsed_base.scheme.lower() != "https" or not parsed_base.hostname or parsed_base.username is not None or parsed_base.password is not None:
+            warnings.append(f"{origin}[{index}] ({name}): base_url muss eine HTTPS-URL ohne Zugangsdaten sein")
             continue
         key_envs = entry.get("key_envs")
         key_names = tuple(str(key).strip() for key in key_envs if str(key).strip()) if isinstance(key_envs, list) else ()
+        if key_names and not allow_credentials:
+            warnings.append(f"{origin}[{index}] ({name}): entfernte Kataloge duerfen keine Secrets anfordern")
+            continue
         prefix = str(entry.get("litellm_prefix", "openai/")).strip() or "openai/"
         routes.append(
             CatalogRoute(
@@ -143,15 +153,16 @@ def load_remote_kataloge(urls: list[str], fetch_json, timeout: float, warnings: 
     """Lädt entfernte Kataloge; ein toter Katalog stoppt den Lauf nicht."""
     routes: list[CatalogRoute] = []
     for url in urls:
-        if not url.startswith(("https://", "http://")):
-            warnings.append(f"{url}: wird ignoriert (keine http(s)-URL)")
+        parsed_url = urllib.parse.urlsplit(url)
+        if parsed_url.scheme.lower() != "https" or not parsed_url.hostname or parsed_url.username is not None or parsed_url.password is not None:
+            warnings.append(f"{url}: wird ignoriert (nur HTTPS-Kataloge ohne Zugangsdaten erlaubt)")
             continue
         try:
             payload = fetch_json(url, timeout)
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError, ValueError):
             warnings.append(f"{url}: nicht erreichbar")
             continue
-        routes.extend(parse_catalog(payload, origin=url, warnings=warnings))
+        routes.extend(parse_catalog(payload, origin=url, warnings=warnings, allow_credentials=False))
     return routes
 
 
