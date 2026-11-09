@@ -137,7 +137,12 @@ class AutonomyEngine(private val api: GitHubApi) {
             return
         }
 
-        api.markReadyForReview(settings.targetRepo, pull.number)
+        try {
+            api.markReadyForReview(settings.targetRepo, pull.number)
+        } catch (error: GitHubApi.ApiException) {
+            emit(Event.Failure("PR ${pull.number} konnte nicht zur Prüfung freigegeben werden: ${error.message}", pull.htmlUrl))
+            return
+        }
         emit(Event.Info("PR ${pull.number} als bereit markiert. Prüfe Mergebarkeit."))
 
         val mergeable = awaitMergeable(settings, pull.number)
