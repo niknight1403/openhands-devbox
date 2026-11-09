@@ -63,4 +63,11 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
+
+    testImplementation("junit:junit:4.13.2")
+}
+
+// Keep the lightweight settings validation tests in the same path as the CI APK build.
+tasks.named("assembleDebug") {
+    dependsOn("testDebugUnitTest")
 }
