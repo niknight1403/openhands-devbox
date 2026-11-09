@@ -257,6 +257,7 @@ jobs:
           # Der Test-Push ist die ehrliche Pruefung: Er fragt genau die Operation
           # ab, die der Abschluss-Schritt braucht, und veraendert nichts.
           askpass_datei() { # $1 Zielpfad; liest den Token zur Laufzeit aus PROBE_TOKEN
+            # shellcheck disable=SC2016 # Quotes erhalten Variablen fuer das spaeter erzeugte Askpass-Skript.
             printf '%s\n' \
               '#!/bin/sh' \
               'case "$1" in' \
@@ -497,7 +498,7 @@ jobs:
                 --shell-export \
                 --report "$RUNNER_TEMP/route-report-${role}-${attempt}.json"; then
                 echo "::error::Keine Ersatzroute verfuegbar; Rolle ${role} wird abgebrochen."
-                echo "::error::Ohne Modellschluessel bleibt nur die schluesselfreie Route pollinations (1 Antwort je 45 s). Hinterlege ein kostenloses Repository-Secret, etwa GROQ_API_KEY, GEMINI_API_KEY oder OPENROUTER_API_KEY."
+                echo "::error::Keine Ersatzroute verfuegbar. Pruefe die Erreichbarkeit der Anbieter und hinterlege mindestens einen gueltigen Modellschluessel, z. B. GROQ_API_KEY, CEREBRAS_API_KEY, GEMINI_API_KEY oder OPENROUTER_API_KEY."
                 return 1
               fi
               . "$RUNNER_TEMP/route.env"
@@ -557,6 +558,7 @@ jobs:
           fi
           git add -A
           git commit -m "openhands: ${PROFILE} development update"
+          # shellcheck disable=SC2016 # Variablen werden absichtlich erst im Askpass-Skript ausgewertet.
           cat > "$RUNNER_TEMP/openhands-askpass" <<'ASKPASS'
           #!/bin/sh
           case "$1" in

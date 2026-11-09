@@ -46,7 +46,7 @@ jobs:
           echo "SDK: $SDK_ROOT"
           SDKMANAGER="$(command -v sdkmanager || true)"
           if [ -z "$SDKMANAGER" ]; then
-            SDKMANAGER="$(ls -d "$SDK_ROOT"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -1 || true)"
+            SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -mindepth 3 -maxdepth 3 -type f -name sdkmanager -print -quit 2>/dev/null || true)"
           fi
           echo "sdkmanager: ${SDKMANAGER:-nicht gefunden}"
           if [ -n "$SDKMANAGER" ]; then
