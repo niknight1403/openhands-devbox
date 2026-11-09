@@ -336,6 +336,10 @@ def forced_candidates(model_input: str) -> list[ModelInfo]:
         prefix = f"{provider.name}/"
         if wanted.startswith(prefix):
             return [ModelInfo(provider=provider.name, model=wanted[len(prefix):])]
+    # 1b. Anbieter mit Doppelpunkt ("cerebras:gpt-oss-120b"), wie in der App gewaehlt.
+    name, trenner, rest = wanted.partition(":")
+    if trenner and rest and any(provider.name == name for provider in PROVIDERS):
+        return [ModelInfo(provider=name, model=rest)]
     # 2. LiteLLM-Präfixe, die sich vom Anbieternamen unterscheiden (z. B. "openrouter/").
     for prefix, provider in unique_litellm_prefixes().items():
         if wanted.startswith(prefix):

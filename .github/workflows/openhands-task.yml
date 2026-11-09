@@ -593,6 +593,8 @@ jobs:
             echo "- Branch: \`${BRANCH:-nicht angelegt}\`"
             echo "- Modellroute: \`${LLM_MODEL:-keine}\`${LLM_ROUTE_NAME:+ (${LLM_ROUTE_NAME})}"
             echo "- GitHub-Zugang: \`${GH_TOKEN_SOURCE:-nicht geprueft}\`"
+            echo "- Lauf: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Projektgedächtnis fortschreiben
         if: always() && env.PROJECT_NAME != ''
         continue-on-error: true
