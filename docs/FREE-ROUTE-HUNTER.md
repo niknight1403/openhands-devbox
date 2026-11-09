@@ -134,6 +134,17 @@ ersetzt das Skript durch `<entfernt>`. Eine globale Prüfung über alle Gespräc
 am Ende gibt es bewusst nicht mehr: Sie würde Fehler bereits verworfener Routen
 erneut melden und einen geretteten Lauf fälschlich rot machen.
 
+## Hinweise aus dem Autopilot-Status
+
+Der Autopilot kann erprobte Routen als Hinweise mitgeben (`HUNTER_STATUS_FILE`).
+Sie bringen ihre Modelle in die Jagd und übernehmen die Werkzeugeignung aus dem
+Status. Sie überstimmen die Eignung aber **nicht** mehr: bis Version davor
+standen Hinweise immer vorn, wodurch eine veraltete Empfehlung die schlüsselfreie
+Route `pollinations` vor alle echten Anbieter schob. Der Agentenlauf scheiterte
+dann am Kontingent, obwohl Schlüssel für Groq, Cerebras und Gemini vorhanden
+waren. Jetzt gilt die normale Sortierung, Hinweise sind nur eine zusätzliche
+Modellquelle.
+
 ## Grenzen
 
 - Ein HTTP 2xx beim Mini-Aufruf garantiert keinen guten Lauf. Es beweist nur,

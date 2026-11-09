@@ -243,6 +243,16 @@ jobs:
         env:
           OPENHANDS_SUPPRESS_BANNER: "1"
           TTY_INTERACTIVE: "0"
+          # Ohne diese Schluessel findet der Ersatzversuch im Schritt unten
+          # keine echte Alternative und faellt auf die keyless-Route zurueck.
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          GH_MODELS_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
         run: |
           set -euo pipefail
           if [ -z "${LLM_MODEL:-}" ] || [ -z "${LLM_API_KEY:-}" ]; then

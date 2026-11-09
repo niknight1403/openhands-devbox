@@ -457,7 +457,10 @@ def build_candidates(
     ]
     if hints:
         print(f"Autopilot-Hinweise übernommen: {', '.join(info.label for info in hints)}")
-    return hints + filtered
+    # Hinweise bringen erprobte Modelle in die Jagd, dürfen die Eignung aber nicht
+    # überstimmen: sonst rutscht eine schlüsselfreie, streng limitierte Route vor
+    # einen echten Anbieter und der Agentenlauf scheitert am Kontingent.
+    return rank_candidates(hints + filtered, prefer)
 
 
 def hunt(
@@ -554,7 +557,12 @@ def load_status_hints(env: dict[str, str]) -> list[ModelInfo]:
             continue
         if provider not in PROVIDER_BY_NAME:
             continue
-        ranked.append((0 if entry.get("tools_ok") else 1, ModelInfo(provider=provider, model=model)))
+        ranked.append(
+            (
+                0 if entry.get("tools_ok") else 1,
+                ModelInfo(provider=provider, model=model, supports_tools=bool(entry.get("tools_ok"))),
+            )
+        )
     ranked.sort(key=lambda item: item[0])
     return [info for _, info in ranked]
 

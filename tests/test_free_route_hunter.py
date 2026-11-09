@@ -208,7 +208,7 @@ class AutopilotHintTests(unittest.TestCase):
         candidates = hunter.build_candidates(env, discover=fake_discovery(models))
         self.assertNotIn("qwen/qwen3-coder:free", [info.model for info in candidates])
 
-    def test_status_hints_go_first(self):
+    def test_status_hints_bring_models_into_the_hunt(self):
         with tempfile.TemporaryDirectory() as folder:
             path = self.write_status(
                 folder,
@@ -221,9 +221,31 @@ class AutopilotHintTests(unittest.TestCase):
             env = {"OPENROUTER_API_KEY": "k", "HUNTER_STATUS_FILE": path}
             discover = fake_discovery([hunter.ModelInfo("openrouter", "native/model:free", 262144, True)])
             labels = [info.label for info in hunter.build_candidates(env, discover=discover)]
-        # Werkzeugroute zuerst, danach die bestätigte Route ohne Werkzeuge; gemini hat keinen Schlüssel
-        self.assertEqual(labels[:2], ["openrouter:tool/model:free", "openrouter:weak/model:free"])
-        self.assertIn("openrouter:native/model:free", labels)
+        # Hinweise bringen ihre Modelle mit, die Werkzeugeignung wird übernommen;
+        # gemini fehlt der Schlüssel und bleibt draußen.
+        self.assertIn("openrouter:tool/model:free", labels)
+        self.assertIn("openrouter:weak/model:free", labels)
+        self.assertNotIn("gemini:gemini-2.5-flash", labels)
+        self.assertLess(
+            labels.index("openrouter:tool/model:free"),
+            labels.index("openrouter:weak/model:free"),
+        )
+
+    def test_hints_promote_no_keyless_route(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = self.write_status(
+                folder,
+                [
+                    {"provider": "pollinations", "model": "openai", "chat_ok": True, "tools_ok": True},
+                    {"provider": "openrouter", "model": "qwen/qwen3-coder:free", "chat_ok": True, "tools_ok": True},
+                ],
+            )
+            env = {"OPENROUTER_API_KEY": "k", "HUNTER_STATUS_FILE": path}
+            discover = fake_discovery([hunter.ModelInfo("openrouter", "native/model:free", 262144, True)])
+            labels = [info.label for info in hunter.build_candidates(env, discover=discover)]
+        # Eine schlüsselfreie Route darf trotz Hinweis nicht vor eine echte rutschen.
+        self.assertNotEqual(labels[0], "pollinations:openai")
+        self.assertEqual(labels[-1], "pollinations:openai")
 
     def test_missing_status_file_is_no_error(self):
         env = {"OPENROUTER_API_KEY": "k", "HUNTER_STATUS_FILE": "/tmp/gibt-es-nicht-xyz.json"}
