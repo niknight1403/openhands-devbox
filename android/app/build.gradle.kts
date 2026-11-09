@@ -67,7 +67,9 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
 }
 
-// Keep the lightweight settings validation tests in the same path as the CI APK build.
-tasks.named("assembleDebug") {
-    dependsOn("testDebugUnitTest")
+// Android registers variant tasks lazily; configure the APK task when it appears.
+tasks.configureEach {
+    if (name == "assembleDebug") {
+        dependsOn("testDebugUnitTest")
+    }
 }
