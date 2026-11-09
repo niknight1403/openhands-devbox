@@ -88,6 +88,8 @@ Ein Unterschied bleibt: PRs, die mit dem eingebauten `GITHUB_TOKEN` erstellt wer
 
 ## Einmalige Einrichtung der Modell-Keys
 
+Ohne hinterlegten Modellschlüssel bleibt nur die schlüsselfreie Reserve Pollinations. Ihre Verfügbarkeit und mögliche Nutzungsgrenzen hängen vom externen Dienst ab; sie ist keine verlässliche Dauerroute für Agentenläufe. Für stabilere Läufe empfiehlt sich mindestens eine Anbieterroute mit eigenem Schlüssel, etwa GROQ_API_KEY, CEREBRAS_API_KEY, GEMINI_API_KEY oder OPENROUTER_API_KEY. Der Hunter probiert alle hinterlegten Schlüssel automatisch.
+
 Lege die folgenden Secrets in **Settings → Secrets and variables → Actions** dieses Repositorys an:
 
 - `OPENROUTER_API_KEY` — Hauptroute; der Hunter liest daraus live alle kostenlosen Modelle.
