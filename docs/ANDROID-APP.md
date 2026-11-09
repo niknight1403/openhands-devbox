@@ -89,3 +89,17 @@ android/app/src/main/java/dev/openhands/devbox/
   ui/SettingsScreen.kt    Einrichtung und Token-Prüfung
   ui/MainActivity.kt      Einstieg und Navigation
 ```
+
+## Dateien, Fotos und Videos mitschicken (ab 1.2.0)
+
+Über **Datei** neben dem Eingabefeld lassen sich Fotos, Videos und Dokumente
+direkt vom Gerät wählen. Die App lädt jede Datei ins Zielprojekt
+(`docs/openhands/assets/`, Zweig `main`) und übergibt die Rohadressen im
+Workflow-Feld `assets`. Der Lauf lädt sie herunter, legt sie im Draft-PR ab und
+nennt dem Agenten Pfad, Typ und Größe.
+
+Grenzen der App: bis zu fünf Dateien je Auftrag, 20 MB je Datei, Upload über die
+GitHub-Inhalts-API mit dem gespeicherten Token. Namen werden bereinigt
+(`Mein Foto.jpg` → `20261109-034500-Mein-Foto.jpg`), abgelehnte Dateien nennen
+den Grund im Chat. Die Chips über dem Eingabefeld zeigen Angehängtes und lassen
+sich antippen, um es wieder zu entfernen.

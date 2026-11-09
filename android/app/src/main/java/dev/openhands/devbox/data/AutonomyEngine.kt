@@ -27,6 +27,8 @@ class AutonomyEngine(private val api: GitHubApi) {
         val task: String,
         val iteration: Int,
         val iterations: Int,
+        /** Rohadressen mitgegebener Dateien, Fotos und Videos. */
+        val assets: List<String> = emptyList(),
     )
 
     private val pollMillis = 15_000L
@@ -60,6 +62,9 @@ class AutonomyEngine(private val api: GitHubApi) {
             put("client_run", slug)
             if (gewaehltesProjekt != null) {
                 put("project", gewaehltesProjekt.slug)
+            }
+            if (request.assets.isNotEmpty()) {
+                put("assets", request.assets.joinToString("\n"))
             }
         }
 

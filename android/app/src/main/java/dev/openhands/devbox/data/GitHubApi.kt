@@ -104,6 +104,21 @@ class GitHubApi(private val tokenProvider: () -> String) {
         call(request("/repos/$controlRepo/actions/workflows/$workflowFile/dispatches", "POST", body))
     }
 
+    /**
+     * Legt eine Datei im Zielprojekt ab (Inhalts-API, Zweig main) und gibt die
+     * Rohadresse zurueck. Der Workflow laedt sie von dort als Auftragsdatei.
+     */
+    suspend fun uploadAsset(targetRepo: String, path: String, bytes: ByteArray, message: String): String {
+        val body = buildJsonObject {
+            put("message", message)
+            put("content", android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP))
+            put("branch", "main")
+        }
+        val antwort = call(request("/repos/$targetRepo/contents/$path", "PUT", body))
+        val daten = json.decodeFromString(ContentUpload.serializer(), antwort)
+        return daten.downloadUrl ?: "https://raw.githubusercontent.com/$targetRepo/main/$path"
+    }
+
     /** Sucht den Run, der nach dem Absenden entstanden ist. */
     suspend fun findRunAfter(controlRepo: String, workflowFile: String, dispatchedAtMillis: Long): WorkflowRun? {
         val runs = json.decodeFromString(

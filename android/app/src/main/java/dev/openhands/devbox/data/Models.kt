@@ -61,3 +61,9 @@ data class PullRequest(
 
 @Serializable
 data class GitHubUser(val login: String = "")
+
+@Serializable
+data class ContentUpload(
+    val path: String? = null,
+    @SerialName("download_url") val downloadUrl: String? = null,
+)

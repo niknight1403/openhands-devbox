@@ -1,0 +1,58 @@
+# Kostenlose Qualitaetswerkzeuge laufen lassen und den Bericht sichtbar machen.
+# Kein Blocker fuer den Lauf: der Bericht zeigt Befunde, der Mensch entscheidet.
+name: Qualitaets-Gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+  schedule:
+    # Montags 05:30 UTC: Wochenblick auf still eingeschleppte Befunde.
+    - cron: "30 5 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Freie Werkzeuge installieren
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet --upgrade pip
+          python3 -m pip install --quiet -r requirements-dev.txt
+          # actionlint und shellcheck sind kleine Einzelbinaries bzw. apt-Pakete.
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash \
+            | bash -s -- latest "$RUNNER_TEMP/bin"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Werkzeuge ausfuehren
+        run: |
+          set -uo pipefail
+          python3 scripts/qualitaets_gate.py --markdown-datei "$RUNNER_TEMP/qualitaet.md" | tee "$RUNNER_TEMP/qualitaet.txt"
+          cat "$RUNNER_TEMP/qualitaet.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Bericht als Artefakt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qualitaets-report
+          path: |
+            ${{ runner.temp }}/qualitaet.md
+            ${{ runner.temp }}/qualitaet.txt
+          if-no-files-found: warn

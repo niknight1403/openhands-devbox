@@ -49,6 +49,11 @@ on:
         required: false
         default: ""
         type: string
+      assets:
+        description: "Dateien, Fotos oder Videos als URL, eine pro Zeile (landen in docs/openhands/assets/)"
+        required: false
+        default: ""
+        type: string
   # Ein Projekt-Autopilot startet diesen Lauf per workflow_call. Dort gibt es
   # keine Auswahllisten, deshalb sind alle Werte freie Strings und werden im
   # Schritt "Projekt laden" gegen config/targets.txt geprüft.
@@ -73,6 +78,11 @@ on:
         default: ""
         type: string
       project:
+        required: false
+        default: ""
+        type: string
+      assets:
+        description: "Dateien, Fotos oder Videos als URL, eine pro Zeile"
         required: false
         default: ""
         type: string
@@ -115,6 +125,7 @@ jobs:
           freigegeben="$(grep -vE '^[[:space:]]*(#|$)' control/config/targets.txt)"
           projekt_prompt=""
           projekt_kontext=""
+          projekt_gedaechtnis=""
           if [ -n "$PROJECT_INPUT" ]; then
             if ! printf '%s' "$PROJECT_INPUT" | grep -Eq '^[a-z0-9][a-z0-9-]{1,40}$'; then
               echo "::error::project darf nur Kleinbuchstaben, Ziffern und - enthalten."
@@ -131,6 +142,7 @@ jobs:
             standard_profil="${DEFAULT_PROFILE:-superagent}"
             projekt_prompt="$ordner/PROMPT.md"
             projekt_kontext="$ordner/PROJECT.md"
+            projekt_gedaechtnis="$ordner/GEDAEHNTNIS.md"
             # Ein Projekt bestimmt sein Zielrepository selbst. Die Auswahlliste
             # im manuellen Start hat einen festen Standardwert, der hier nur
             # dann stören würde; deshalb gewinnt das Projekt und der
@@ -153,6 +165,7 @@ jobs:
             echo "PROJECT_NAME=$PROJECT_INPUT"
             echo "PROJECT_PROMPT_FILE=$projekt_prompt"
             echo "PROJECT_CONTEXT_FILE=$projekt_kontext"
+            echo "PROJECT_MEMORY_FILE=$projekt_gedaechtnis"
           } >> "$GITHUB_ENV"
           echo "Projekt: ${PROJECT_INPUT:-keins} | Ziel: niknight1403/$ziel | Profil: $standard_profil"
 
@@ -173,6 +186,45 @@ jobs:
           ref: main
           path: workspace
           persist-credentials: false
+
+      - name: Projektgedächtnis und Dateien laden
+        env:
+          ASSETS_INPUT: ${{ inputs.assets }}
+        run: |
+          set -euo pipefail
+          gedaechtnis="$RUNNER_TEMP/gedaechtnis.md"
+          : > "$gedaechtnis"
+          if [ -n "${PROJECT_MEMORY_FILE:-}" ] && [ -f "${PROJECT_MEMORY_FILE}" ]; then
+            python3 control/scripts/projekt_gedaechtnis.py \
+              --wurzel "$GITHUB_WORKSPACE/control" laden --projekt "${PROJECT_NAME}" > "$gedaechtnis" || true
+            echo "Gedaechtnis: $(grep -c '^- ' "$gedaechtnis" || true) Eintraege geladen."
+          else
+            echo "Kein Projektgedaechtnis vorhanden; dieser Lauf beginnt ohne Vorwissen."
+          fi
+          assets_liste="$RUNNER_TEMP/assets.md"
+          : > "$assets_liste"
+          anzahl=0
+          if [ -n "${ASSETS_INPUT:-}" ]; then
+            while IFS= read -r adresse; do
+              adresse="$(printf '%s' "$adresse" | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+              [ -z "$adresse" ] && continue
+              case "$adresse" in \#*) continue ;; esac
+              anzahl=$((anzahl + 1))
+              if python3 control/scripts/assets.py holen \
+                --url "$adresse" \
+                --verzeichnis workspace/docs/openhands/assets >> "$assets_liste"; then
+                echo "Datei geladen: $adresse"
+              else
+                echo "::warning::Datei nicht geladen: $adresse"
+              fi
+            done <<< "$ASSETS_INPUT"
+          fi
+          echo "Dateien aus dem Auftrag: $anzahl"
+          {
+            echo "GEDAECHTNIS_DATEI=$gedaechtnis"
+            echo "ASSETS_LISTE=$assets_liste"
+            echo "ASSETS_ANZAHL=$anzahl"
+          } >> "$GITHUB_ENV"
 
       - name: agent/*-Branch anlegen
         env:
@@ -298,6 +350,14 @@ jobs:
           fi
           if [ -n "$PROJEKT_KONTEXT" ]; then
             TASK="$TASK"$'\n\n'"--- Projektkontext ---"$'\n'"$PROJEKT_KONTEXT"
+          fi
+          if [ -s "${GEDAECHTNIS_DATEI:-/dev/null}" ]; then
+            TASK="$TASK"$'\n\n'"--- Projektgedächtnis aus früheren Läufen ---"$'\n'"$(cat "$GEDAECHTNIS_DATEI")"
+            TASK="$TASK"$'\n\n'"Prüfe zuerst, ob ein Eintrag unter \"Wiederhole nicht\" deinen Plan betrifft. Neue Entscheidungen, Befunde und offene Punkte trägst du im Zielprojekt in docs/openhands/STATUS.md ein."
+          fi
+          if [ -s "${ASSETS_LISTE:-/dev/null}" ]; then
+            TASK="$TASK"$'\n\n'"--- Mitgelieferte Dateien (liegen im Arbeitsverzeichnis) ---"$'\n'"$(cat "$ASSETS_LISTE")"
+            TASK="$TASK"$'\n\n'"Sichte Bilder und Videos, bevor du über sie schreibst, und nenne sie mit Pfad."
           fi
           if [ -z "$TASK" ]; then
             TASK="Autonom-Wache-Sprint: Halte ${TARGET_REPO} funktionsfähig. Prüfe die vorhandenen Build-, Lint- und Test-Kommandos. Wähle anschließend höchstens 1-3 klar begrenzte Verbesserungen aus echten Projektbedürfnissen, etwa Fehlerkorrektur, Sicherheit, Bedienbarkeit oder sinnvolle Werkzeuge. Ändere keine Workflow- oder Secret-Dateien und pushe nie direkt auf main."
@@ -533,5 +593,51 @@ jobs:
             echo "- Branch: \`${BRANCH:-nicht angelegt}\`"
             echo "- Modellroute: \`${LLM_MODEL:-keine}\`${LLM_ROUTE_NAME:+ (${LLM_ROUTE_NAME})}"
             echo "- GitHub-Zugang: \`${GH_TOKEN_SOURCE:-nicht geprueft}\`"
-            echo "- Draft-PR: ${{ steps.draft_pr.outputs.PR_URL || 'keiner erstellt' }}"
-          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Projektgedächtnis fortschreiben
+        if: always() && env.PROJECT_NAME != ''
+        continue-on-error: true
+        env:
+          PAT: ${{ secrets.OPENHANDS_GH_PAT }}
+          BUILTIN_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL_OUT: ${{ steps.draft_pr.outputs.PR_URL }}
+          RUN_ID: ${{ github.run_id }}
+          GESAMT_STATUS: ${{ job.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -uo pipefail
+          TOKEN="${PAT:-${BUILTIN_TOKEN:-}}"
+          if [ -z "$TOKEN" ]; then
+            echo "::warning::Kein Token für das Gedächtnis; Eintrag entfällt."
+            exit 0
+          fi
+          arbeitsordner="$(mktemp -d)"
+          ziel="$arbeitsordner/projects/$PROJECT_NAME/GEDAEHNTNIS.md"
+          mkdir -p "$(dirname "$ziel")"
+          api="https://api.github.com/repos/$GITHUB_REPOSITORY/contents/projects/$PROJECT_NAME/GEDAEHNTNIS.md"
+          sha=""
+          if curl -fsSL -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github+json" "$api?ref=main" -o "$arbeitsordner/antwort.json"; then
+            sha="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['sha'])" "$arbeitsordner/antwort.json")"
+            python3 -c "import base64,json,sys;open(sys.argv[1],'wb').write(base64.b64decode(json.load(open(sys.argv[2]))['content']))" "$ziel" "$arbeitsordner/antwort.json"
+            echo "Vorhandenes Gedächtnis geladen (sha ${sha:0:7})."
+          else
+            echo "Noch kein Gedächtnis in main; es wird angelegt."
+          fi
+          zeile="Lauf ${RUN_ID} (${GESAMT_STATUS}) | Route ${LLM_MODEL:-keine} | Branch ${BRANCH:-keiner} | PR ${PR_URL_OUT:-keiner} | Dateien ${ASSETS_ANZAHL:-0} | Zugang ${GH_TOKEN_SOURCE:-unbekannt}"
+          python3 control/scripts/projekt_gedaechtnis.py --wurzel "$arbeitsordner" eintrag --projekt "$PROJECT_NAME" --art lauf --text "$zeile" --quelle "$RUN_URL" || true
+          if [ "$GESAMT_STATUS" != "success" ]; then
+            python3 control/scripts/projekt_gedaechtnis.py --wurzel "$arbeitsordner" eintrag --projekt "$PROJECT_NAME" --art offen --text "Lauf ${RUN_ID} endete mit '${GESAMT_STATUS}'; Ursache im Laufprotokoll prüfen, bevor derselbe Weg erneut versucht wird." --quelle "$RUN_URL" || true
+          fi
+          python3 control/scripts/projekt_gedaechtnis.py --wurzel "$arbeitsordner" kompakt --projekt "$PROJECT_NAME" --max 25 || true
+          inhalt="$(base64 -w 0 "$ziel")"
+          if [ -n "$sha" ]; then
+            printf '{"message":"gedaechtnis: Lauf %s","content":"%s","branch":"main","sha":"%s"}' "$RUN_ID" "$inhalt" "$sha" > "$arbeitsordner/payload.json"
+          else
+            printf '{"message":"gedaechtnis: Lauf %s","content":"%s","branch":"main"}' "$RUN_ID" "$inhalt" > "$arbeitsordner/payload.json"
+          fi
+          code="$(curl -s -o "$arbeitsordner/put.json" -w '%{http_code}' -X PUT -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github+json" -H "Content-Type: application/json" --data @"$arbeitsordner/payload.json" "$api")"
+          if [ "$code" = "200" ] || [ "$code" = "201" ]; then
+            echo "Gedächtnis für $PROJECT_NAME fortgeschrieben (HTTP $code)."
+          else
+            echo "::warning::Gedächtnis nicht gespeichert (HTTP $code)."
+          fi
+          python3 -c "import shutil,sys;shutil.rmtree(sys.argv[1], ignore_errors=True)" "$arbeitsordner"

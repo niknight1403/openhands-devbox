@@ -10,6 +10,13 @@ Lies, sofern vorhanden:
 
 - `docs/openhands/ANALYSE.md` (Befundliste mit Prioritäten)
 - `docs/openhands/STATUS.md` (was erledigt ist, was offen blieb, nächster Schritt)
+- `docs/openhands/assets/` (mitgelieferte Dateien, Fotos, Videos)
+
+Zusätzlich steht im Auftrag ein Abschnitt **Projektgedächtnis aus früheren
+Läufen** und, falls mitgeschickt, **Mitgelieferte Dateien**. Beides ist bindend:
+Ein Eintrag unter "Wiederhole nicht" wird nicht wieder versucht, offene Punkte
+werden nicht stillschweigend übergangen, und Bilder oder Videos werden gesichtet,
+bevor über sie geschrieben wird.
 
 Gibt es diese Dateien noch nicht, ist dieser Lauf der Analyselauf.
 Steht dort ein nächster Schritt, bearbeite genau den.
@@ -56,7 +63,9 @@ für jeden Beitrag:
 
 Schreibe am Ende jedes Laufs `docs/openhands/STATUS.md`: Datum, erledigte
 Befunde, ausgeführte Prüfungen mit Ergebnis, offene Punkte, nächster Schritt.
-Diese Datei ist das Gedächtnis der Läufe. Ohne sie fängt jeder Lauf von vorn an.
+Diese Datei trägt das Fachwissen von Lauf zu Lauf; die Devbox führt parallel ein
+eigenes Kurzgedächtnis und trägt jeden Lauf dort automatisch ein. Ohne beide
+fängt jeder Lauf von vorn an.
 
 ## Grenzen
 

@@ -1,5 +1,8 @@
 package dev.openhands.devbox.ui
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -59,11 +62,19 @@ fun ChatScreen(
     onProfileChange: (String) -> Unit,
     onAutoMergeChange: (Boolean) -> Unit,
     onSend: (String) -> Unit,
+    attachments: List<String>,
+    onAttach: (Uri) -> Unit,
+    onRemoveAttachment: (String) -> Unit,
     onStop: () -> Unit,
     onOpenSettings: () -> Unit,
     onMerge: (Int) -> Unit,
 ) {
     var draft by remember { mutableStateOf("") }
+    // Dateien, Fotos und Videos direkt vom Gerät; die App laedt sie danach
+    // ins Zielprojekt und gibt die Adressen an den Lauf weiter.
+    val dateiAuswahl = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) onAttach(uri)
+    }
     val listState = rememberLazyListState()
     val uriHandler = LocalUriHandler.current
 
@@ -118,8 +129,30 @@ fun ChatScreen(
                         enabled = !busy,
                     )
                 }
+                if (attachments.isNotEmpty()) {
+                    Spacer(Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        attachments.forEach { name ->
+                            FilterChip(
+                                selected = true,
+                                onClick = { onRemoveAttachment(name) },
+                                label = { Text("$name ×", style = MaterialTheme.typography.labelSmall) },
+                                enabled = !busy,
+                            )
+                        }
+                    }
+                }
                 Spacer(Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.Bottom) {
+                    OutlinedButton(
+                        onClick = { dateiAuswahl.launch("*/*") },
+                        enabled = !busy,
+                    ) { Text("Datei") }
+                    Spacer(Modifier.size(8.dp))
                     OutlinedTextField(
                         value = draft,
                         onValueChange = { draft = it },

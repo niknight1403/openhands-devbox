@@ -1,0 +1,7 @@
+# Kostenlose Werkzeuge fuer das Qualitaets-Gate. Keine Laufzeitabhaengigkeit,
+# sondern Pruefwerkzeuge; Versionen bewusst offen, damit Fixes ankommen.
+pytest
+pytest-cov
+PyYAML
+ruff
+bandit

@@ -1,6 +1,8 @@
 package dev.openhands.devbox.ui
 
 import android.app.Application
+import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -13,8 +15,10 @@ import dev.openhands.devbox.data.Projects
 import dev.openhands.devbox.data.Settings
 import dev.openhands.devbox.data.SettingsStore
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -38,6 +42,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     val messages = mutableStateListOf<ChatMessage>()
 
+    /** Anzeigenamen der mitgegebenen Dateien, Fotos und Videos. */
+    val anhaengsel = mutableStateListOf<String>()
+    private val anhaengselDaten = linkedMapOf<String, ByteArray>()
+
     var busy by mutableStateOf(false)
         private set
 
@@ -49,6 +57,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     var connectionCheck by mutableStateOf<String?>(null)
         private set
+
+    private val maxAnhangBytes = 20 * 1024 * 1024
+    private val maxAnhaengsel = 5
 
     private var activeJob: Job? = null
     private var counter = 0L
@@ -109,6 +120,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
         activeJob = viewModelScope.launch {
             try {
+                val dateien = ladeAnhaengselHoch()
                 for (iteration in 1..iterations) {
                     val prompt = if (iteration == 1) {
                         task
@@ -116,7 +128,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                         "Folgedurchlauf $iteration für ${settings.targetRepo}: Prüfe das Ergebnis des vorherigen Laufs gegen die ursprüngliche Aufgabe \"$task\". " +
                             "Schließe bestätigte Lücken, behebe Fehler und vervollständige fehlende Bedien- oder Fehlerzustände. Halte die Änderungen klein und prüfbar."
                     }
-                    engine.execute(AutonomyEngine.Request(settings, prompt, iteration, iterations)) { event ->
+                    engine.execute(AutonomyEngine.Request(settings, prompt, iteration, iterations, assets = dateien)) { event ->
                         handle(event)
                     }
                     if (lastFailed) break
@@ -132,6 +144,78 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 activeJob = null
             }
         }
+    }
+
+    fun addAttachment(uri: Uri) {
+        if (anhaengsel.size >= maxAnhaengsel) {
+            push(false, "Höchstens $maxAnhaengsel Dateien je Auftrag.", isError = true)
+            return
+        }
+        viewModelScope.launch {
+            val kontext = getApplication<Application>()
+            try {
+                val name = withContext(Dispatchers.IO) {
+                    kontext.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            val spalte = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                            if (spalte >= 0) cursor.getString(spalte) else null
+                        } else {
+                            null
+                        }
+                    }
+                } ?: uri.lastPathSegment ?: "datei"
+                val bytes = withContext(Dispatchers.IO) {
+                    kontext.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                }
+                when {
+                    bytes == null || bytes.isEmpty() ->
+                        push(false, "Die Datei konnte nicht gelesen werden.", isError = true)
+                    bytes.size > maxAnhangBytes ->
+                        push(false, "Datei zu groß (${bytes.size / (1024 * 1024)} MB), erlaubt sind ${maxAnhangBytes / (1024 * 1024)} MB.", isError = true)
+                    else -> {
+                        val anzeige = name.substringAfterLast('/')
+                        anhaengselDaten[anzeige] = bytes
+                        anhaengsel.add(anzeige)
+                        push(false, "Angehängt: $anzeige (${bytes.size / 1024} KB). Wird beim Senden ins Zielprojekt geladen.")
+                    }
+                }
+            } catch (error: Exception) {
+                push(false, "Datei nicht übernommen: ${error.message ?: error::class.simpleName}", isError = true)
+            }
+        }
+    }
+
+    fun removeAttachment(name: String) {
+        anhaengselDaten.remove(name)
+        anhaengsel.remove(name)
+    }
+
+    /** Laedt die Anhaengsel ins Zielprojekt und gibt die Rohadressen zurueck. */
+    private suspend fun ladeAnhaengselHoch(): List<String> {
+        if (anhaengsel.isEmpty()) return emptyList()
+        val projekt = Projects.findBySlug(settings.project)
+        val repo = projekt?.let { "${settings.controlOwner}/${it.targetShort}" } ?: settings.targetRepo
+        val api = GitHubApi { settings.token }
+        val adressen = mutableListOf<String>()
+        val stempel = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
+        for (name in anhaengsel.toList()) {
+            val bytes = anhaengselDaten[name] ?: continue
+            val sicher = name.replace(Regex("[^A-Za-z0-9._-]"), "-").take(60).ifBlank { "datei" }
+            val pfad = "docs/openhands/assets/$stempel-$sicher"
+            try {
+                statusText = "Datei wird hochgeladen: $name"
+                val adresse = api.uploadAsset(repo, pfad, bytes, "anhang: $sicher")
+                adressen.add(adresse)
+                push(false, "Datei abgelegt: $adresse")
+            } catch (error: GitHubApi.ApiException) {
+                push(false, "Datei $name nicht hochgeladen: ${error.message}", isError = true)
+            }
+        }
+        if (adressen.isNotEmpty()) {
+            anhaengselDaten.clear()
+            anhaengsel.clear()
+        }
+        return adressen
     }
 
     fun stop() {

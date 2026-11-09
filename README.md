@@ -36,6 +36,16 @@ In der App in den Einstellungen einen Fine-grained Token (Actions, Contents, Pul
 
 Der Autonom-Modus ist eine bewusste Entscheidung: Ohne ihn bleibt jeder Lauf als Draft-PR zur Prüfung liegen. Erst der Schalter **Autonom** mergebarer PRs macht aus dem Chat einen durchlaufenden Auftrag; mit **Folgedurchläufen** prüft ein weiterer Lauf das Ergebnis und schließt Lücken.
 
+In der App hängen **Datei, Fotos und Videos** direkt am Auftrag: die App lädt sie ins
+Zielprojekt hoch und gibt die Adressen mit.
+
+## Projektgedächtnis, Dateien und freie Werkzeuge
+
+Jeder Lauf liest das Projektgedächtnis aus `projects/<slug>/GEDAEHNTNIS.md` und trägt sich am Ende
+dort ein; Dateien, Fotos und Videos lassen sich per URL (Eingabe `assets`) oder aus der App
+mitgeben und landen in `docs/openhands/assets/` im Zielprojekt. Freie Prüfwerkzeuge sammelt das
+Qualitäts-Gate. Details: [Gedächtnis und Dateien](docs/gedaechtnis-und-dateien.md).
+
 ## Vom Android-Handy starten
 
 1. Öffne dieses Repository in der GitHub-App und gehe zu **Actions → OpenHands Task → Run workflow**.
