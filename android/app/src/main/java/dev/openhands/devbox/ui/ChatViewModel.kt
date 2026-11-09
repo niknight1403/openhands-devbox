@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -60,6 +61,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     private val maxAnhangBytes = 20 * 1024 * 1024
     private val maxAnhaengsel = 5
+
+    private class AttachmentTooLargeException : Exception()
 
     private var activeJob: Job? = null
     private var counter = 0L
@@ -165,20 +168,41 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 } ?: uri.lastPathSegment ?: "datei"
                 val bytes = withContext(Dispatchers.IO) {
-                    kontext.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                    kontext.contentResolver.openInputStream(uri)?.use { input ->
+                        val output = ByteArrayOutputStream()
+                        val buffer = ByteArray(8192)
+                        var total = 0
+                        while (true) {
+                            val gelesen = input.read(buffer)
+                            if (gelesen < 0) break
+                            total += gelesen
+                            if (total > maxAnhangBytes) throw AttachmentTooLargeException()
+                            output.write(buffer, 0, gelesen)
+                        }
+                        output.toByteArray()
+                    }
                 }
                 when {
                     bytes == null || bytes.isEmpty() ->
                         push(false, "Die Datei konnte nicht gelesen werden.", isError = true)
-                    bytes.size > maxAnhangBytes ->
-                        push(false, "Datei zu groß (${bytes.size / (1024 * 1024)} MB), erlaubt sind ${maxAnhangBytes / (1024 * 1024)} MB.", isError = true)
                     else -> {
-                        val anzeige = name.substringAfterLast('/')
+                        val basis = name.substringAfterLast('/').ifBlank { "datei" }
+                        val punkt = basis.lastIndexOf('.')
+                        val stamm = if (punkt > 0) basis.substring(0, punkt) else basis
+                        val endung = if (punkt > 0) basis.substring(punkt) else ""
+                        var anzeige = basis
+                        var index = 2
+                        while (anhaengselDaten.containsKey(anzeige)) {
+                            anzeige = "$stamm ($index)$endung"
+                            index++
+                        }
                         anhaengselDaten[anzeige] = bytes
                         anhaengsel.add(anzeige)
                         push(false, "Angehängt: $anzeige (${bytes.size / 1024} KB). Wird beim Senden ins Zielprojekt geladen.")
                     }
                 }
+            } catch (error: AttachmentTooLargeException) {
+                push(false, "Datei zu groß. Erlaubt sind ${maxAnhangBytes / (1024 * 1024)} MB.", isError = true)
             } catch (error: Exception) {
                 push(false, "Datei nicht übernommen: ${error.message ?: error::class.simpleName}", isError = true)
             }
@@ -197,6 +221,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         val repo = projekt?.let { "${settings.controlOwner}/${it.targetShort}" } ?: settings.targetRepo
         val api = GitHubApi { settings.token }
         val adressen = mutableListOf<String>()
+        val erfolgreich = mutableListOf<String>()
         val stempel = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
         for (name in anhaengsel.toList()) {
             val bytes = anhaengselDaten[name] ?: continue
@@ -206,14 +231,17 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 statusText = "Datei wird hochgeladen: $name"
                 val adresse = api.uploadAsset(repo, pfad, bytes, "anhang: $sicher")
                 adressen.add(adresse)
+                erfolgreich.add(name)
                 push(false, "Datei abgelegt: $adresse")
             } catch (error: GitHubApi.ApiException) {
                 push(false, "Datei $name nicht hochgeladen: ${error.message}", isError = true)
             }
         }
-        if (adressen.isNotEmpty()) {
-            anhaengselDaten.clear()
-            anhaengsel.clear()
+        // Nur erfolgreich hochgeladene Dateien entfernen. Fehlgeschlagene
+        // Anhaenge bleiben fuer einen erneuten Versuch erhalten.
+        erfolgreich.forEach { name ->
+            anhaengselDaten.remove(name)
+            anhaengsel.remove(name)
         }
         return adressen
     }
