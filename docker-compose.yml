@@ -1,4 +1,5 @@
 # OpenHands Agent Canvas im Codespace mit verpflichtendem Backend-API-Key
+# und lokaler Offline-Route für alle Agenten-, Planungs- und Code-Schleifen.
 services:
   openhands:
     image: ghcr.io/openhands/agent-canvas:1.26.0
@@ -10,11 +11,14 @@ services:
       # Der Key wird lokal in der ignorierten .env erzeugt; kein LAN-Session-Key im HTML.
       LOCAL_BACKEND_API_KEY: ${LOCAL_BACKEND_API_KEY:?Starte bash scripts/bootstrap-codespace.sh}
       PROJECTS_PATH: /workspaces/openhands-devbox
-      # Route aus dem Free Route Hunter (scripts/bootstrap-codespace.sh schreibt sie
-      # in .env). Die Canvas-Einstellungen können sie jederzeit überschreiben.
-      LLM_API_KEY: ${LLM_API_KEY:-${OPENROUTER_API_KEY:-}}
-      LLM_BASE_URL: ${LLM_BASE_URL:-}
-      LLM_MODEL: ${LLM_MODEL:-}
+      # Lokale Offline-Route (config/local-llm.env). Jede Completion, jeder
+      # Werkzeugaufruf und jede Ersatzschleife geht ausschließlich an diesen
+      # Endpunkt. Die Vorgaben greifen auch ohne .env; einen Cloud-Schlüssel
+      # (OPENROUTER_API_KEY) verwendet der Container bewusst nicht mehr.
+      LLM_OFFLINE: ${LLM_OFFLINE:-1}
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:11434/v1}
+      LLM_MODEL: ${LLM_MODEL:-openai/qwen2.5-coder:7b}
+      LLM_API_KEY: ${LLM_API_KEY:-local-dummy-key}
       LOG_LEVEL: info
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -22,6 +26,7 @@ services:
       - .:/workspaces/openhands-devbox
       - openhands_state:/home/openhands/.openhands
     extra_hosts:
+      # Damit host.docker.internal im Container auf den lokalen Ollama-Router zeigt.
       - "host.docker.internal:host-gateway"
 
 volumes:

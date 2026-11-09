@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "description": "Lokale Offline-Route für alle Agenten-, Planungs- und Code-Schleifen. Der Free Route Hunter und der LLM-Autopilot prüfen und verwenden in diesem Modus ausschließlich diesen Endpunkt; ein Cloud-Anbieter wird weder gefragt noch als Ersatz eingesetzt.",
+  "aktivierung": "LLM_OFFLINE=1 (Standard) in config/local-llm.env; scripts/bootstrap-codespace.sh schreibt die Route beim Start in die .env.",
+  "endpunkt": {
+    "provider": "OpenAI-kompatibel (Ollama, LiteLLM-Proxy oder eigener Router)",
+    "LLM_BASE_URL": "http://host.docker.internal:11434/v1",
+    "LLM_MODEL": "openai/qwen2.5-coder:7b",
+    "LLM_API_KEY": "local-dummy-key",
+    "hinweis": "Der Schlüssel wird lokal ignoriert, das Client-SDK verlangt ihn aber. Adresse aus Sicht des Canvas-Containers; von Hand auf dem Host ist es http://127.0.0.1:11434/v1, für einen LiteLLM-Proxy typisch http://127.0.0.1:4000/v1."
+  },
+  "sperren": [
+    "LOCAL_LLM_STRICT=1 lehnt jede Basis-URL ab, die nicht Loopback, privates Netz oder ein Docker-/LAN-Name ist.",
+    "Im Offline-Modus baut free_route_hunter.py keine Cloud-Kandidaten und llm_autopilot.py lädt weder eingebaute Anbieter noch entfernte Kataloge.",
+    "docker-compose.yml setzt die Route als Vorgabe und verwendet bewusst keinen OPENROUTER_API_KEY als Ersatz."
+  ],
+  "pruefung": [
+    "python3 scripts/local_llm_router.py --check --json  # Modellliste, Chat-Antwort, Werkzeugaufruf",
+    "python3 scripts/local_llm_router.py --apply --env-file .env  # Route in die .env schreiben",
+    "python3 -m unittest tests.test_local_llm_router  # Offline-Tests ohne Netzwerk"
+  ],
+  "grenzen": [
+    "GitHub-Actions-Läufe erreichen keinen lokalen Router. Dort bleibt LLM_OFFLINE=0, sonst findet der Agentenlauf keine Route; für Offline-Betrieb in CI braucht es einen Self-Hosted-Runner mit Zugriff auf den Router.",
+    "Ein nicht erreichbarer lokaler Endpunkt wird gemeldet (Exit 5), nicht ersetzt. Router starten: ollama serve; Modell laden: ollama pull qwen2.5-coder:7b."
+  ]
+}

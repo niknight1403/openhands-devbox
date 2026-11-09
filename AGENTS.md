@@ -26,6 +26,10 @@ Die Rollen sind getrennte Arbeitsphasen, keine Behauptung paralleler Agenten, fa
 - Prüfe vorhandene Tests, Linter und Build-Kommandos. Führe passende, verfügbare Checks aus und berichte ehrlich über ausgelassene oder fehlgeschlagene Checks.
 - Halte Änderungen nachvollziehbar. Verberge keine Fehler, entferne keine Nutzerinhalte und behaupte keine Validierung, die nicht stattgefunden hat.
 
+## Modellroute
+
+Alle Modellaufrufe laufen über die eine Route aus `config/local-llm.env` (`LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY`, `LLM_OFFLINE`). Baue keine zusätzliche Anbieterauswahl, keinen zweiten Endpunkt und keinen Cloud-Ersatzweg ein. Wenn die lokale Route nicht antwortet, melde den Ausfall; weiche nicht auf einen anderen Anbieter aus. Details in `docs/LOCAL-OFFLINE-LLM.md`.
+
 ## Sicherheitsgrenzen
 
 - Lies, kopiere, protokolliere oder gib niemals API-Schlüssel, Tokens, Passwörter, private Schlüssel oder Inhalte aus `.env`-Dateien aus. Verwende Zugangsdaten nur über bereits bereitgestellte Umgebungsvariablen und nur für den vereinbarten Zweck.

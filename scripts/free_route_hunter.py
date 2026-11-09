@@ -38,6 +38,8 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
+import local_llm_router
+
 USER_AGENT = "openhands-devbox-free-route-hunter/1.0"
 DEFAULT_TIMEOUT = 20.0
 DEFAULT_MAX_PER_PROVIDER = 5
@@ -155,6 +157,19 @@ PROVIDERS: tuple[Provider, ...] = (
 )
 
 PROVIDER_BY_NAME: dict[str, Provider] = {provider.name: provider for provider in PROVIDERS}
+
+#: Provider-Eintrag der lokalen Route. ``base_url`` und Modell kommen aus
+#: ``config/local-llm.env`` (siehe :func:`local_provider`), deshalb bleibt der
+#: Eintrag hier leer. Priorität 0: die lokale Route steht immer vorn.
+LOCAL_PROVIDER = Provider(
+    name="local",
+    base_url="",
+    key_envs=("LOCAL_LLM_API_KEY", "LLM_API_KEY"),
+    models=(),
+    priority=0,
+    needs_key=False,
+    note="lokale Offline-Route (Ollama/LiteLLM), kein Cloud-Fallback",
+)
 
 #: Signale für Eignung im agentischen Coding-Lauf. Gewicht in Sekunden,
 #: negative Werte bevorzugen ein Modell.
@@ -577,6 +592,84 @@ def usable(info: ModelInfo, env: dict[str, str]) -> bool:
     return not provider.needs_key or bool(provider_credential(provider, env))
 
 
+def local_provider(env: dict[str, str]) -> Provider:
+    """Die lokale Route als Provider, damit Prüfung und Report dieselbe Form haben."""
+    route = local_llm_router.load_config(env)
+    return Provider(
+        name=LOCAL_PROVIDER.name,
+        base_url=route.base_url,
+        key_envs=LOCAL_PROVIDER.key_envs,
+        models=(route.model,),
+        litellm_prefix=route.litellm_prefix,
+        priority=LOCAL_PROVIDER.priority,
+        needs_key=False,
+        note=LOCAL_PROVIDER.note,
+    )
+
+
+def run_local(environment: dict[str, str], args: argparse.Namespace, timeout: float, ping=ping_route) -> int:
+    """Offline-Modus: genau eine Route, keine Cloud-Kandidaten, kein Ersatz durch die Cloud."""
+    route = local_llm_router.load_config(environment)
+    try:
+        local_llm_router.validate(route)
+    except ValueError as error:
+        print(f"::error::{error}")
+        return 7
+
+    provider = local_provider(environment)
+    model = route.model
+    print(f"Offline-Modus: ausschließlich lokale Route {route.base_url} ({route.model_string}).")
+    if args.list:
+        print(f"  local:{model} → {route.model_string}")
+        return 0
+
+    check = ping(provider, model, route.api_key, timeout)
+    checks = [{"provider": provider.name, "model": model, "ok": check.ok, "status": check.status, "latency_ms": check.latency_ms}]
+    report = {
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "mode": "local",
+        "base_url": route.base_url,
+        "chosen": (
+            {"provider": provider.name, "model": model, "litellm_model": route.model_string, "latency_ms": check.latency_ms}
+            if check.ok
+            else None
+        ),
+        "checked": checks,
+        "providers_available": [provider.name],
+        "providers_missing_key": [],
+        "hint": "Offline-Modus (LLM_OFFLINE=1): Cloud-Anbieter werden nicht geprüft. "
+        "Router starten und Modell laden, oder LOCAL_LLM_STRICT/LLM_OFFLINE bewusst ändern.",
+    }
+    report_path = args.report or environment.get("HUNTER_REPORT", "")
+    if report_path:
+        with open(report_path, "w", encoding="utf-8") as handle:
+            json.dump(report, handle, indent=2, ensure_ascii=False)
+            handle.write("\n")
+    if args.summary and environment.get("GITHUB_STEP_SUMMARY"):
+        with open(environment["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as handle:
+            handle.write(summary_markdown(report))
+    if args.json:
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+
+    if not check.ok:
+        print(f"::error::Lokale Route {route.base_url} antwortet nicht (HTTP {check.status}).")
+        print(
+            "::error::Kein Cloud-Fallback im Offline-Modus. Router starten (ollama serve), "
+            f"Modell laden (ollama pull {route.model}), dann erneut prüfen: "
+            "python3 scripts/local_llm_router.py --check"
+        )
+        return 5
+
+    write_env(
+        local_llm_router.route_values(route),
+        args.env_file if args.env_file is not None else environment.get("GITHUB_ENV"),
+        # nosec B604 - write_env ist eine eigene Funktion, kein Shell-Aufruf
+        shell=args.shell_export,
+    )
+    print(f"::notice::Lokale Offline-Route bereit: {route.label} (HTTP {check.status}, {check.latency_ms} ms)")
+    return 0
+
+
 def build_report(
     chosen: ModelInfo | None,
     check: RouteCheck | None,
@@ -612,6 +705,8 @@ def summary_markdown(report: dict) -> str:
     chosen = report.get("chosen")
     checked = report.get("checked") or []
     lines = ["### Free Route Hunter", ""]
+    if report.get("mode") == "local":
+        lines.append(f"- Modus: offline, nur lokale Route `{report.get('base_url', '')}`")
     if chosen:
         lines.append(f"- Route: `{chosen['provider']}` / `{chosen['model']}` ({chosen['latency_ms']} ms)")
     else:
@@ -664,6 +759,11 @@ def main(argv: list[str] | None = None, env: dict[str, str] | None = None, disco
         environment.get("HUNTER_MAX_PER_PROVIDER", DEFAULT_MAX_PER_PROVIDER) or DEFAULT_MAX_PER_PROVIDER
     )
     include_paid = args.include_paid or environment.get("HUNTER_ALLOW_PAID", "").strip() in {"1", "true", "yes"}
+
+    # Offline-Modus: die lokale Route ist die einzige Route. Cloud-Kandidaten
+    # werden weder gebaut noch geprüft, damit kein Ersatzversuch dorthin führt.
+    if local_llm_router.offline_requested(environment):
+        return run_local(environment, args, timeout, ping=ping)
 
     providers = available_providers(environment, include_paid=include_paid)
     candidates = build_candidates(

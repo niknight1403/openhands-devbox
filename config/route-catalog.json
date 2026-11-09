@@ -1,5 +1,17 @@
 {
   "schema_version": 1,
-  "description": "Zusätzliche OpenAI-kompatible Routen für den LLM-Autopilot. Hier trägst du Anbieter ein, die nicht im eingebauten Katalog stehen. Jeder Eintrag: name, base_url, models, optional key_envs (Namen der Secrets) und litellm_prefix. Der Autopilot prüft jede Route mit einem echten Mini- und Werkzeugaufruf; unbrauchbare Einträge werden gemeldet, nicht verwendet.",
-  "routes": []
+  "description": "Zusätzliche OpenAI-kompatible Routen für den LLM-Autopilot. Hier trägst du Anbieter ein, die nicht im eingebauten Katalog stehen. Jeder Eintrag: name, base_url, models, optional key_envs (Namen der Secrets) und litellm_prefix. base_url muss HTTPS sein; HTTP ist nur für lokale Endpunkte erlaubt (Loopback, privates Netz, host.docker.internal) - so steht hier die lokale Offline-Route aus config/local-llm.env. Der Autopilot prüft jede Route mit einem echten Mini- und Werkzeugaufruf; unbrauchbare Einträge werden gemeldet, nicht verwendet.",
+  "routes": [
+    {
+      "name": "local-ollama",
+      "base_url": "http://host.docker.internal:11434/v1",
+      "models": [
+        "qwen2.5-coder:7b"
+      ],
+      "key_envs": [
+        "LOCAL_LLM_API_KEY"
+      ],
+      "litellm_prefix": "openai/"
+    }
+  ]
 }

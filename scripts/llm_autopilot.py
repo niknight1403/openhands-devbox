@@ -39,6 +39,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import free_route_hunter as hunter
+import local_llm_router
 
 USER_AGENT = "openhands-devbox-llm-autopilot/1.0"
 DEFAULT_TIMEOUT = 20.0
@@ -114,8 +115,15 @@ def parse_catalog(
             warnings.append(f"{origin}[{index}]: name oder models fehlt")
             continue
         parsed_base = urllib.parse.urlsplit(base_url)
-        if parsed_base.scheme.lower() != "https" or not parsed_base.hostname or parsed_base.username is not None or parsed_base.password is not None:
-            warnings.append(f"{origin}[{index}] ({name}): base_url muss eine HTTPS-URL ohne Zugangsdaten sein")
+        credentials = parsed_base.username is not None or parsed_base.password is not None
+        # HTTPS ist Pflicht; HTTP nur für lokale Endpunkte (Ollama, LiteLLM-Proxy),
+        # die den Rechner nie verlassen.
+        secure = parsed_base.scheme.lower() == "https" or local_llm_router.is_local_endpoint(base_url)
+        if not secure or not parsed_base.hostname or credentials:
+            warnings.append(
+                f"{origin}[{index}] ({name}): base_url muss HTTPS sein "
+                "(HTTP nur für lokale Endpunkte) und darf keine Zugangsdaten enthalten"
+            )
             continue
         key_envs = entry.get("key_envs")
         key_names = tuple(str(key).strip() for key in key_envs if str(key).strip()) if isinstance(key_envs, list) else ()
@@ -154,7 +162,13 @@ def load_remote_kataloge(urls: list[str], fetch_json, timeout: float, warnings: 
     routes: list[CatalogRoute] = []
     for url in urls:
         parsed_url = urllib.parse.urlsplit(url)
-        if parsed_url.scheme.lower() != "https" or not parsed_url.hostname or parsed_url.username is not None or parsed_url.password is not None:
+        unsicher = (
+            parsed_url.scheme.lower() != "https"
+            or not parsed_url.hostname
+            or parsed_url.username is not None
+            or parsed_url.password is not None
+        )
+        if unsicher:
             warnings.append(f"{url}: wird ignoriert (nur HTTPS-Kataloge ohne Zugangsdaten erlaubt)")
             continue
         try:
@@ -517,6 +531,7 @@ def run(
 
     status: dict = {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "mode": "local" if local_llm_router.offline_requested(env) else "cloud",
         "packs": pack_reports,
         "routes": [],
         "best": None,
@@ -531,10 +546,24 @@ def run(
     max_routes = int(env.get("AUTOPILOT_MAX_ROUTES", DEFAULT_MAX_ROUTES) or DEFAULT_MAX_ROUTES)
     tool_probe = env.get("AUTOPILOT_TOOL_PROBE", "1").strip() not in {"0", "false", "no"}
 
-    routes = builtin_routes(env, hunter.discover_openrouter, timeout, max_per_provider)
-    routes += load_katalog(catalog_path, warnings)
-    urls = [url.strip() for url in env.get("AUTOPILOT_CATALOG_URLS", "").split(",") if url.strip()]
-    routes += load_remote_kataloge(urls, fetch_json_fn, timeout, warnings)
+    offline = local_llm_router.offline_requested(env)
+    if offline:
+        # Offline-Modus: nur lokale Katalogeinträge. Cloud-Anbieter und entfernte
+        # Kataloge werden gar nicht erst geladen, damit kein Prüfaufruf dorthin geht.
+        routes = [
+            route for route in load_katalog(catalog_path, warnings) if local_llm_router.is_local_endpoint(route.base_url)
+        ]
+        if not routes:
+            warnings.append(
+                f"Offline-Modus (LLM_OFFLINE=1), aber kein lokaler Eintrag in {catalog_path}; "
+                "prüfe config/local-llm.env und config/route-catalog.json."
+            )
+        print("Autopilot: Offline-Modus, ausschließlich lokale Routen.")
+    else:
+        routes = builtin_routes(env, hunter.discover_openrouter, timeout, max_per_provider)
+        routes += load_katalog(catalog_path, warnings)
+        urls = [url.strip() for url in env.get("AUTOPILOT_CATALOG_URLS", "").split(",") if url.strip()]
+        routes += load_remote_kataloge(urls, fetch_json_fn, timeout, warnings)
 
     candidates, caps = build_candidates(routes, env, max_routes)
     warnings.extend(caps)
