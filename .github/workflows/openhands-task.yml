@@ -184,6 +184,9 @@ jobs:
         with:
           repository: ${{ env.TARGET_REPO }}
           ref: main
+          # Private Fremd-Repositories brauchen den fein begrenzten PAT bereits beim Checkout.
+          # Für das eigene Repository bleibt GITHUB_TOKEN der sichere Fallback.
+          token: ${{ secrets.OPENHANDS_GH_PAT || secrets.GITHUB_TOKEN }}
           path: workspace
           persist-credentials: false
 
