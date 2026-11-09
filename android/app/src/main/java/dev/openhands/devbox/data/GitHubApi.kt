@@ -125,12 +125,14 @@ class GitHubApi(private val tokenProvider: () -> String) {
             WorkflowRunsResponse.serializer(),
             call(request("/repos/$controlRepo/actions/workflows/$workflowFile/runs?event=workflow_dispatch&per_page=10")),
         ).workflowRuns
+        // Never attach the UI to an unrelated older run when the dispatch
+        // has not appeared yet. If several runs start in the same window,
+        // prefer the newest candidate instead of the earliest stale one.
         return runs
             .mapNotNull { run -> parseIso(run.createdAt)?.let { run to it } }
             .filter { (_, created) -> created >= dispatchedAtMillis - 15_000 }
-            .minByOrNull { (_, created) -> created }
+            .maxByOrNull { (_, created) -> created }
             ?.first
-            ?: runs.firstOrNull()
     }
 
     suspend fun run(controlRepo: String, runId: Long): WorkflowRun =
