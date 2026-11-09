@@ -49,8 +49,10 @@ eingebaute Katalog nicht kennt. Zwei Wege:
 ```
 
 **Entfernt** über eine Repository-Variable `AUTOPILOT_CATALOG_URLS`
-(kommagetrennte JSON-URLs, gleiches Schema). So kann eine externe Liste
-gepflegt werden, ohne dieses Repository zu ändern.
+(kommagetrennte HTTPS-JSON-URLs). Entfernte Kataloge dürfen ausschließlich
+schlüsselfreie Routen deklarieren: `key_envs` wird dort abgewiesen, damit ein
+fremder Katalog keine Repository-Secrets an einen eigenen Endpunkt umleiten kann.
+Schlüsselgebundene Custom-Routen gehören in den versionierten lokalen Katalog.
 
 Regeln, die der Autopilot selbst durchsetzt:
 
