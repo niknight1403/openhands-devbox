@@ -1,0 +1,81 @@
+# Baut die OpenHands-Steuer-App als installierbares APK
+name: Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - "agent/**"
+    tags:
+      - "v*"
+    paths:
+      - "android/**"
+      - ".github/workflows/android-build.yml"
+  pull_request:
+    paths:
+      - "android/**"
+      - ".github/workflows/android-build.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Devbox-Skripte testen
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+
+      - name: JDK 17 einrichten
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Android-SDK prüfen
+        run: |
+          set -euo pipefail
+          # Der Runner liefert das SDK bereits mit; setup-android@v3 scheitert dort am
+          # entfernten Paket 'tools'. Fehlende Bestandteile werden direkt nachgezogen.
+          SDK_ROOT="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          echo "SDK: $SDK_ROOT"
+          SDKMANAGER="$(command -v sdkmanager || true)"
+          if [ -z "$SDKMANAGER" ]; then
+            SDKMANAGER="$(ls -d "$SDK_ROOT"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -1 || true)"
+          fi
+          echo "sdkmanager: ${SDKMANAGER:-nicht gefunden}"
+          if [ -n "$SDKMANAGER" ]; then
+            (yes | "$SDKMANAGER" --licenses >/dev/null 2>&1) || true
+            "$SDKMANAGER" --install "platform-tools" "platforms;android-34" "build-tools;34.0.0" >/dev/null
+          else
+            echo "::warning::sdkmanager nicht gefunden, vorhandenes SDK wird genutzt"
+          fi
+          ls "$SDK_ROOT/platforms" "$SDK_ROOT/build-tools" || true
+
+      - name: Debug-APK bauen
+        working-directory: android
+        run: ./gradlew --no-daemon --console=plain assembleDebug
+
+      - name: APK als Artefakt bereitstellen
+        uses: actions/upload-artifact@v4
+        with:
+          name: openhands-devbox-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Release mit APK veröffentlichen
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cp android/app/build/outputs/apk/debug/app-debug.apk "openhands-devbox-${GITHUB_REF_NAME}.apk"
+          gh release create "$GITHUB_REF_NAME" "openhands-devbox-${GITHUB_REF_NAME}.apk" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "OpenHands Devbox ${GITHUB_REF_NAME}" \
+            --notes "Debug-APK der OpenHands-Steuer-App. Installation über Android-Einstellungen (unbekannte Quellen) erlauben."

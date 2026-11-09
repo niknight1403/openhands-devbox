@@ -23,7 +23,24 @@ on:
           - security
           - quality
       model:
-        description: "LiteLLM-Modell-ID (leer = Anbieterstandard)"
+        description: "LiteLLM-Modell-ID (leer = automatische Gratis-Route)"
+        required: false
+        default: ""
+        type: string
+      target:
+        description: "Zielprojekt (nur freigegebene Repositories)"
+        required: true
+        default: Agenten-Villa
+        type: choice
+        options:
+          - Agenten-Villa
+          - openhands-devbox
+          - LaunchpadControl
+          - CyberSarah-Control-Center
+          - Agentforge2
+          - AGI-Agenten
+      client_run:
+        description: "Kurz-ID der Android-App für Branch und PR-Zuordnung (leer = Zeitstempel)"
         required: false
         default: ""
         type: string
@@ -32,13 +49,15 @@ permissions:
   contents: read
 
 concurrency:
-  group: openhands-agenten-villa
+  group: openhands-agenten-lauf
   cancel-in-progress: false
 
 jobs:
   openhands:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    env:
+      TARGET_REPO: niknight1403/${{ inputs.target || 'Agenten-Villa' }}
     steps:
       - name: Devbox-Prompts und Skills auschecken
         uses: actions/checkout@v4
@@ -46,25 +65,46 @@ jobs:
           path: control
           persist-credentials: false
 
+      - name: Letzten Autopilot-Status laden
+        continue-on-error: true
+        run: |
+          curl -fsSL --max-time 20 \
+            "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/autopilot/status/status.json" \
+            -o "$RUNNER_TEMP/autopilot-status.json" \
+            && echo "Autopilot-Status geladen: bereits bestätigte Routen werden zuerst geprüft." \
+            || echo "Kein Autopilot-Status vorhanden; Routenwahl ohne Hinweise."
+
       - name: Zielprojekt auschecken
         id: target_checkout
         uses: actions/checkout@v4
         with:
-          repository: niknight1403/Agenten-Villa
+          repository: niknight1403/${{ inputs.target || 'Agenten-Villa' }}
           ref: main
           path: workspace
           persist-credentials: false
 
       - name: agent/*-Branch anlegen
+        env:
+          CLIENT_RUN_INPUT: ${{ inputs.client_run }}
         run: |
+          set -euo pipefail
+          CLIENT_RUN="$CLIENT_RUN_INPUT"
+          if [ -n "$CLIENT_RUN" ] && ! printf '%s' "$CLIENT_RUN" | grep -Eq '^[A-Za-z0-9_-]{1,32}$'; then
+            echo "::error::client_run darf nur Buchstaben, Ziffern, _ und - enthalten (maximal 32 Zeichen)."
+            exit 2
+          fi
           cd workspace
           git config user.name "OpenHands Agent"
           git config user.email "niknight1403@users.noreply.github.com"
-          BRANCH="agent/openhands-$(date +%Y%m%d-%H%M%S)"
+          if [ -n "$CLIENT_RUN" ]; then
+            BRANCH="agent/app-$CLIENT_RUN"
+          else
+            BRANCH="agent/openhands-$(date +%Y%m%d-%H%M%S)"
+          fi
           echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
           git checkout -b "$BRANCH"
 
-      - name: Guardrail-Sanitizer testen
+      - name: Guardrail-Sanitizer und Routen-Hunter testen
         run: python3 -m unittest discover -s control/tests -p 'test_*.py' -v
 
       - name: OpenHands CLI installieren
@@ -80,6 +120,14 @@ jobs:
           mkdir -p workspace/.agents/skills
           cp -a control/.agents/skills/. workspace/.agents/skills/
 
+      - name: Plugin-Packs laut Autopilot-Konfiguration übernehmen
+        continue-on-error: true
+        run: |
+          python3 control/scripts/llm_autopilot.py \
+            --install-packs workspace/.agents/skills \
+            --status "$RUNNER_TEMP/pack-status.json" \
+            --summary
+
       - name: Aufgabe und Profil vorbereiten
         env:
           TASK_INPUT: ${{ inputs.task }}
@@ -87,7 +135,7 @@ jobs:
         run: |
           TASK="$TASK_INPUT"
           if [ -z "$TASK" ]; then
-            TASK="Autonom-Wache-Sprint: Halte Agenten-Villa funktionsfähig. Prüfe die vorhandenen Build-, Lint- und Test-Kommandos. Wähle anschließend höchstens 1-3 klar begrenzte Verbesserungen aus echten Projektbedürfnissen, etwa Fehlerkorrektur, Sicherheit, Bedienbarkeit oder sinnvolle Werkzeuge. Ändere keine Workflow- oder Secret-Dateien und pushe nie direkt auf main."
+            TASK="Autonom-Wache-Sprint: Halte ${TARGET_REPO} funktionsfähig. Prüfe die vorhandenen Build-, Lint- und Test-Kommandos. Wähle anschließend höchstens 1-3 klar begrenzte Verbesserungen aus echten Projektbedürfnissen, etwa Fehlerkorrektur, Sicherheit, Bedienbarkeit oder sinnvolle Werkzeuge. Ändere keine Workflow- oder Secret-Dateien und pushe nie direkt auf main."
           fi
           PROFILE="${PROFILE_INPUT:-superagent}"
           case "$PROFILE" in
@@ -100,52 +148,98 @@ jobs:
             echo "PROFILE=$PROFILE"
           } >> "$GITHUB_ENV"
 
-      - name: OpenHands-Superagent ausführen
+      - name: Gratis-Route jagen
+        id: route
         env:
           MODEL_INPUT: ${{ inputs.model }}
+          # Jeder hinterlegte Schlüssel erweitert die Jagd automatisch; fehlende
+          # Secrets werden übersprungen, nicht als Fehler behandelt.
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          GH_MODELS_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
+          HUNTER_TIMEOUT: "20"
+          HUNTER_ALLOW_PAID: "0"
         run: |
           set -euo pipefail
-          if [ -n "$OPENROUTER_API_KEY" ]; then
-            export LLM_API_KEY="$OPENROUTER_API_KEY"
-            export LLM_BASE_URL="https://openrouter.ai/api/v1"
-            MODEL="${MODEL_INPUT:-openrouter/qwen/qwen3.8-27b:free}"
-          elif [ -n "$OPENAI_API_KEY" ]; then
-            export LLM_API_KEY="$OPENAI_API_KEY"
-            export LLM_BASE_URL="https://api.openai.com/v1"
-            MODEL="${MODEL_INPUT:-gpt-4o-mini}"
-          else
-            echo "::error::Weder OPENROUTER_API_KEY noch OPENAI_API_KEY als Action-Secret hinterlegt"
+          python3 control/scripts/free_route_hunter.py \
+            --report "$RUNNER_TEMP/route-report.json" \
+            --status-file "$RUNNER_TEMP/autopilot-status.json" \
+            --summary
+
+      - name: Routen-Report bereitstellen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: route-report
+          path: ${{ runner.temp }}/route-report.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: OpenHands-Superagent ausführen
+        env:
+          OPENHANDS_SUPPRESS_BANNER: "1"
+          TTY_INTERACTIVE: "0"
+        run: |
+          set -euo pipefail
+          if [ -z "${LLM_MODEL:-}" ] || [ -z "${LLM_API_KEY:-}" ]; then
+            echo "::error::Keine geprüfte Modellroute vorhanden; Lauf wird nicht gestartet."
             exit 1
           fi
-          export LLM_MODEL="$MODEL"
-          echo "Modellroute gewählt; Zugangsdaten werden nicht ausgegeben."
 
           TASK="$(printf '%s' "$TASK_B64" | base64 --decode)"
           GUIDANCE="$(cat control/AGENTS.md)"
           BASE_PROMPT="${GUIDANCE}"$'\n\n## Konkreter Nutzerauftrag\n'"${TASK}"$'\n\n## Grenzen dieses Laufs\nArbeite ausschließlich in /workspace. Verwende relevante Skills unter .agents/skills/. Ändere keine Dateien unter .github/workflows/, keine Secrets, .env-Dateien oder Zugangsdaten. Read-only Git-Inspektionen wie status, diff und log sind erlaubt; führe keine Git-Schreibkommandos, gh- oder Veröffentlichungs-Kommandos aus. Der äußere Workflow verwaltet Branch und Draft-PR. Begrenze den Umfang auf maximal drei zusammenhängende Änderungen.'
 
+          ROUTE_RETRIES="${ROUTE_RETRIES:-2}"
+
+          model_failure() {
+            local log_path="$1"
+            grep -Eq "litellm\.[[:alnum:]_]+Error|no credits remaining|rate.?limit|HTTP/1\.1 429|model_not_found|invalid_api_key" "$log_path"
+          }
+
           run_agent() {
             local role="$1"
             local instructions="$2"
+            local attempt=0
             local prompt
-            local log_path="$RUNNER_TEMP/openhands-${role}.log"
-            local exit_code=0
-            prompt="${BASE_PROMPT}"$'\n\n## Deine Rolle in diesem Durchlauf\n'"${instructions}"
-            echo "::group::OpenHands-Rolle: ${role}"
-            cd workspace
-            if openhands --headless --override-with-envs -t "$prompt" >"$log_path" 2>&1; then
-              exit_code=0
-            else
-              exit_code=$?
-            fi
-            cd "$GITHUB_WORKSPACE"
-            echo "::endgroup::"
-            if [ "$exit_code" -ne 0 ] || grep -Eq "litellm\.[[:alnum:]_]+Error|no credits remaining" "$log_path"; then
-              echo "::error::OpenHands-Rolle ${role} fehlgeschlagen; sensible Roh-Logs werden nicht ausgegeben."
-              return 1
-            fi
+            local log_path
+            local exit_code
+            while : ; do
+              prompt="${BASE_PROMPT}"$'\n\n## Deine Rolle in diesem Durchlauf\n'"${instructions}"
+              log_path="$RUNNER_TEMP/openhands-${role}-${attempt}.log"
+              echo "::group::OpenHands-Rolle: ${role} (Route ${LLM_ROUTE_NAME:-unbekannt}, Versuch $((attempt + 1)))"
+              cd workspace
+              if openhands --headless --override-with-envs -t "$prompt" >"$log_path" 2>&1; then
+                exit_code=0
+              else
+                exit_code=$?
+              fi
+              cd "$GITHUB_WORKSPACE"
+              echo "::endgroup::"
+              if [ "$exit_code" -eq 0 ] && ! model_failure "$log_path"; then
+                return 0
+              fi
+              if [ "$attempt" -ge "$ROUTE_RETRIES" ]; then
+                echo "::error::OpenHands-Rolle ${role} fehlgeschlagen; sensible Roh-Logs werden nicht ausgegeben."
+                return 1
+              fi
+              attempt=$((attempt + 1))
+              export HUNTER_EXCLUDE="${HUNTER_EXCLUDE:+${HUNTER_EXCLUDE},}${LLM_ROUTE_NAME:-}"
+              echo "::warning::Route ${LLM_ROUTE_NAME:-unbekannt} ausgefallen; der Autopilot sucht Ersatz (Versuch ${attempt}/${ROUTE_RETRIES})."
+              if ! python3 control/scripts/free_route_hunter.py \
+                --env-file "$RUNNER_TEMP/route.env" \
+                --shell-export \
+                --report "$RUNNER_TEMP/route-report-${role}-${attempt}.json"; then
+                echo "::error::Keine Ersatzroute verfügbar; Rolle ${role} wird abgebrochen."
+                return 1
+              fi
+              . "$RUNNER_TEMP/route.env"
+            done
           }
 
           case "$PROFILE" in
@@ -169,7 +263,8 @@ jobs:
           esac
 
           python3 - <<'PY'
-          import glob, json, sys
+          import glob, json, re, sys
+          REDAKTION = re.compile(r"(sk-|ghp_|github_pat_)[A-Za-z0-9_-]+|[A-Za-z0-9_-]{32,}")
           errors = []
           for path in glob.glob("/home/runner/.openhands/conversations/*/events/*.json"):
               try:
@@ -178,9 +273,13 @@ jobs:
               except (OSError, json.JSONDecodeError):
                   continue
               if event.get("kind") == "ConversationErrorEvent":
-                  errors.append(True)
+                  code = str(event.get("code", "Unbekannt"))
+                  detail = REDAKTION.sub("<entfernt>", str(event.get("detail", "")))[:400]
+                  errors.append((code, detail))
           if errors:
-              print(f"::error::OpenHands meldete {len(errors)} Fehler; Details werden nicht in Actions-Logs ausgegeben.")
+              for code, detail in errors:
+                  print(f"::error::OpenHands-Fehler {code}: {detail}")
+              print(f"::error::OpenHands meldete {len(errors)} Fehler.")
               sys.exit(1)
           print("OpenHands-Event-Prüfung abgeschlossen.")
           PY
@@ -190,6 +289,7 @@ jobs:
         run: python3 control/scripts/restore-protected-changes.py workspace
 
       - name: Änderungen als Draft-PR einreichen
+        id: draft_pr
         if: success()
         env:
           GH_TOKEN: ${{ secrets.OPENHANDS_GH_PAT }}
@@ -203,6 +303,7 @@ jobs:
           trap cleanup EXIT
           if [ -z "$(git status --porcelain)" ]; then
             echo "OpenHands hat keine PR-fähigen Änderungen hinterlassen."
+            echo "PR_URL=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git add -A
@@ -217,8 +318,30 @@ jobs:
           ASKPASS
           chmod 700 "$RUNNER_TEMP/openhands-askpass"
           GIT_ASKPASS="$RUNNER_TEMP/openhands-askpass" GIT_TERMINAL_PROMPT=0 git push origin "$BRANCH"
-          gh pr create \
-            --repo niknight1403/Agenten-Villa \
+          PR_URL="$(gh pr create \
+            --repo "$TARGET_REPO" \
             --base main --head "$BRANCH" --draft \
             --title "OpenHands: ${PROFILE} development update" \
-            --body "Automatisch von der OpenHands Devbox erstellt. Profil: ${PROFILE}. Keine Aufgabeninhalte in PR-Metadaten. Bitte Änderungen und Tests vor dem Merge prüfen."
+            --body "Automatisch von der OpenHands Devbox erstellt. Profil: ${PROFILE}. Keine Aufgabeninhalte in PR-Metadaten. Bitte Änderungen und Tests vor dem Merge prüfen.")"
+          echo "PR_URL=$PR_URL" >> "$GITHUB_OUTPUT"
+          {
+            echo "### OpenHands-Lauf"
+            echo ""
+            echo "- Zielprojekt: \`$TARGET_REPO\`"
+            echo "- Profil: \`$PROFILE\`"
+            echo "- Modellroute: \`${LLM_MODEL}\` (${LLM_ROUTE_NAME:-unbekannt})"
+            echo "- Branch: \`$BRANCH\`"
+            echo "- Draft-PR: $PR_URL"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Lauf-Zusammenfassung
+        if: always()
+        run: |
+          {
+            echo "### Ergebnis"
+            echo ""
+            echo "- Zielprojekt: \`$TARGET_REPO\`"
+            echo "- Branch: \`${BRANCH:-nicht angelegt}\`"
+            echo "- Modellroute: \`${LLM_MODEL:-keine}\`${LLM_ROUTE_NAME:+ (${LLM_ROUTE_NAME})}"
+            echo "- Draft-PR: ${{ steps.draft_pr.outputs.PR_URL || 'keiner erstellt' }}"
+          } >> "$GITHUB_STEP_SUMMARY"

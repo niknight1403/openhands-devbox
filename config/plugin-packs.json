@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "description": "Plugin-Packs (AgentSkills-Format) für die Devbox. mode=validate prüft nur die Struktur, mode=install kopiert gültige Skills zusätzlich in das Zielprojekt. Es werden nur öffentliche Repositorys ohne Zugangsdaten gelesen; Inhalte und Lizenzen vor dem Umschalten auf install prüfen.",
+  "packs": [
+    {
+      "name": "anthropic-skills",
+      "repo": "anthropics/skills",
+      "ref": "main",
+      "path": "skills",
+      "mode": "validate",
+      "select": ["frontend-design", "docx"]
+    }
+  ]
+}

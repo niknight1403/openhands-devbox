@@ -1,0 +1,72 @@
+# Prüft täglich, welche kostenlosen LLM-Routen gerade wirklich antworten
+name: Free Route Check
+
+on:
+  schedule:
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+    inputs:
+      prefer:
+        description: "Anbieter bevorzugen (z. B. groq,openrouter; leer = automatisch)"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  hunt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Hunter-Tests ausführen
+        run: python3 -m unittest discover -s tests -p 'test_free_route_hunter.py' -v
+
+      - name: Gratis-Routen prüfen
+        env:
+          PREFER_INPUT: ${{ inputs.prefer }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          GH_MODELS_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
+          HUNTER_TIMEOUT: "20"
+          HUNTER_ALLOW_PAID: "0"
+        run: |
+          set -euo pipefail
+          ARGS=(--report "$RUNNER_TEMP/route-report.json" --summary)
+          if [ -n "$PREFER_INPUT" ]; then
+            ARGS+=(--prefer "$PREFER_INPUT")
+          fi
+          python3 scripts/free_route_hunter.py "${ARGS[@]}"
+
+      - name: Routen-Report als Artefakt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: route-report
+          path: ${{ runner.temp }}/route-report.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Hinweis bei nicht erreichbarer Route
+        if: failure()
+        run: |
+          {
+            echo "### Keine Gratis-Route erreichbar"
+            echo ""
+            echo "Alle geprüften Kandidaten haben abgelehnt. Häufige Ursachen:"
+            echo ""
+            echo "- Tages- oder Minutenkontingent des Anbieters aufgebraucht (HTTP 429)"
+            echo "- Schlüssel abgelaufen oder ohne Freischaltung für das Modell (HTTP 401/403)"
+            echo "- Modell aus der kostenlosen Liste entfernt (HTTP 404)"
+            echo ""
+            echo "Der Agentenlauf nutzt in diesem Fall automatisch die nächste erreichbare Route der Kaskade."
+          } >> "$GITHUB_STEP_SUMMARY"

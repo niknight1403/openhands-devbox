@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "description": "Zusätzliche OpenAI-kompatible Routen für den LLM-Autopilot. Hier trägst du Anbieter ein, die nicht im eingebauten Katalog stehen. Jeder Eintrag: name, base_url, models, optional key_envs (Namen der Secrets) und litellm_prefix. Der Autopilot prüft jede Route mit einem echten Mini- und Werkzeugaufruf; unbrauchbare Einträge werden gemeldet, nicht verwendet.",
+  "routes": []
+}
