@@ -13,6 +13,7 @@ alles andere ist bewusst knapp gehalten, damit es gelesen wird.
 
 - 2026-11-09 | Lauf 42546288483 (success) | Route openrouter:qwen/qwen3-coder:free | Branch agent/openhands-20261109-013448 | PR #258 | 2 neue Testdateien, Befund 1 und 4 umgesetzt [https://github.com/niknight1403/openhands-devbox/actions/runs/42546288483]
 - 2026-11-09 | Lauf 42554062108 (failure) | Route keine | Branch agent/openhands-20261109-030131 | PR keiner | Dateien 1 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/42554062108]
+- 2026-11-09 | Lauf 42554381341 (failure) | Route openai/gpt-oss-120b | Branch agent/openhands-20261109-030506 | PR keiner | Dateien 1 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/42554381341]
 
 ## Entscheidungen
 
@@ -34,3 +35,4 @@ alles andere ist bewusst knapp gehalten, damit es gelesen wird.
 - 2026-11-09 | Naechster Schritt laut STATUS.md: Befund 3, ungenutztes Theme lib/neon-pulse-theme.ts entfernen (S, niedriges Risiko).
 - 2026-11-09 | Zwei Deploy-Statusmeldungen (create-production-builds.yml) sind auf main dauerhaft rot und unabhaengig von Agenten-PRs; nicht als PR-Fehler werten.
 - 2026-11-09 | Lauf 42554062108 endete mit 'failure'; Ursache im Laufprotokoll prüfen, bevor derselbe Weg erneut versucht wird. [https://github.com/niknight1403/openhands-devbox/actions/runs/42554062108]
+- 2026-11-09 | Lauf 42554381341 endete mit 'failure'; Ursache im Laufprotokoll prüfen, bevor derselbe Weg erneut versucht wird. [https://github.com/niknight1403/openhands-devbox/actions/runs/42554381341]
