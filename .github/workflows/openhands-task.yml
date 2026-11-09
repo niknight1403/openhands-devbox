@@ -1,4 +1,8 @@
 # OpenHands Superagent — mobil startbar, mit isolierten Rollenläufen und Draft-PR
+# Modellroute: standardmäßig die Cloud-Jagd. Repository-Variable LLM_OFFLINE=1
+# schaltet auf die lokale Offline-Route (config/local-llm.env) um; auf
+# GitHub-gehosteten Runnern ist sie nicht erreichbar, dort braucht es einen
+# Self-Hosted-Runner. Details: docs/LOCAL-OFFLINE-LLM.md
 name: OpenHands Task
 
 on:
@@ -379,6 +383,13 @@ jobs:
         id: route
         env:
           MODEL_INPUT: ${{ inputs.model }}
+          # Offline-Route auch in CI: Repository-Variable LLM_OFFLINE=1 setzen.
+          # Der Hunter prüft dann ausschließlich den lokalen Endpunkt aus
+          # config/local-llm.env und bricht ab, wenn er nicht antwortet - ohne
+          # Cloud-Ersatz. Auf GitHub-gehosteten Runnern ist der lokale Router
+          # nicht erreichbar; dafür braucht es einen Self-Hosted-Runner.
+          LLM_OFFLINE: ${{ vars.LLM_OFFLINE }}
+          LOCAL_LLM_CONFIG: control/config/local-llm.env
           # Jeder hinterlegte Schlüssel erweitert die Jagd automatisch; fehlende
           # Secrets werden übersprungen, nicht als Fehler behandelt.
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -411,6 +422,10 @@ jobs:
         env:
           OPENHANDS_SUPPRESS_BANNER: "1"
           TTY_INTERACTIVE: "0"
+          # Gleicher Schalter wie oben: die Ersatzjagd im Lauf bleibt im
+          # Offline-Modus bei der lokalen Route.
+          LLM_OFFLINE: ${{ vars.LLM_OFFLINE }}
+          LOCAL_LLM_CONFIG: control/config/local-llm.env
           # Ohne diese Schluessel findet der Ersatzversuch im Schritt unten
           # keine echte Alternative und faellt auf die keyless-Route zurueck.
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}

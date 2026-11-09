@@ -64,6 +64,18 @@ Cloud-Fallback), `7` Konfiguration ungültig.
 - `scripts/local_llm_router.py` schreibt die `.env` idempotent: wiederholte
   Läufe erzeugen keine doppelten Einträge, andere Schlüssel bleiben erhalten.
 
+## GitHub Actions
+
+Der Agenten-Workflow (`.github/workflows/openhands-task.yml`) liest die
+Repository-Variable `LLM_OFFLINE`. Mit `LLM_OFFLINE=1` prüft der Hunter
+ausschließlich den lokalen Endpunkt aus `config/local-llm.env` und bricht mit
+einer klaren Meldung ab, wenn er nicht antwortet; die Ersatzjagd im Lauf bleibt
+ebenfalls lokal. Ohne die Variable bleibt der bisherige Weg über die Cloud-Jagd.
+
+Auf GitHub-gehosteten Runnern ist `host.docker.internal` nicht erreichbar,
+deshalb funktioniert `LLM_OFFLINE=1` dort nur mit einem Self-Hosted-Runner, der
+den Router sieht (dann `LOCAL_LLM_BASE_URL` auf dessen Adresse setzen).
+
 ## Grenzen
 
 - GitHub-Actions-Läufe können keinen Router auf dem eigenen Rechner erreichen.
