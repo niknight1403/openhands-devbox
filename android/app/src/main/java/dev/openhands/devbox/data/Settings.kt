@@ -29,7 +29,7 @@ data class Settings(
 
 class SettingsStore(context: Context) {
 
-    private val prefs: SharedPreferences = runCatching {
+    private val storage = runCatching {
         val masterKey = MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
@@ -39,13 +39,18 @@ class SettingsStore(context: Context) {
             masterKey,
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-        )
+        ) to true
     }.getOrElse {
+        // Keep non-sensitive preferences usable, but never persist a GitHub token
+        // in an unencrypted SharedPreferences fallback.
         context.getSharedPreferences("openhands_devbox_settings_fallback", Context.MODE_PRIVATE)
+            .also { it.edit().remove(KEY_TOKEN).apply() } to false
     }
+    private val prefs: SharedPreferences = storage.first
+    private val tokenEncryptionAvailable: Boolean = storage.second
 
     fun load(): Settings = Settings(
-        token = prefs.getString(KEY_TOKEN, "") ?: "",
+        token = if (tokenEncryptionAvailable) prefs.getString(KEY_TOKEN, "") ?: "" else "",
         controlOwner = prefs.getString(KEY_CONTROL_OWNER, "niknight1403") ?: "niknight1403",
         controlRepo = prefs.getString(KEY_CONTROL_REPO, "openhands-devbox") ?: "openhands-devbox",
         workflowFile = prefs.getString(KEY_WORKFLOW, "openhands-task.yml") ?: "openhands-task.yml",
@@ -59,8 +64,13 @@ class SettingsStore(context: Context) {
     )
 
     fun save(settings: Settings) {
-        prefs.edit()
-            .putString(KEY_TOKEN, settings.token)
+        val editor = prefs.edit()
+        if (tokenEncryptionAvailable) {
+            editor.putString(KEY_TOKEN, settings.token)
+        } else {
+            editor.remove(KEY_TOKEN)
+        }
+        editor
             .putString(KEY_CONTROL_OWNER, settings.controlOwner)
             .putString(KEY_CONTROL_REPO, settings.controlRepo)
             .putString(KEY_WORKFLOW, settings.workflowFile)
