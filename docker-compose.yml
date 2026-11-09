@@ -10,7 +10,11 @@ services:
       # Der Key wird lokal in der ignorierten .env erzeugt; kein LAN-Session-Key im HTML.
       LOCAL_BACKEND_API_KEY: ${LOCAL_BACKEND_API_KEY:?Starte bash scripts/bootstrap-codespace.sh}
       PROJECTS_PATH: /workspaces/openhands-devbox
-      LLM_API_KEY: ${OPENROUTER_API_KEY:-}
+      # Route aus dem Free Route Hunter (scripts/bootstrap-codespace.sh schreibt sie
+      # in .env). Die Canvas-Einstellungen können sie jederzeit überschreiben.
+      LLM_API_KEY: ${LLM_API_KEY:-${OPENROUTER_API_KEY:-}}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-}
       LOG_LEVEL: info
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

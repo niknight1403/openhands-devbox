@@ -95,7 +95,7 @@ jobs:
           echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
           git checkout -b "$BRANCH"
 
-      - name: Guardrail-Sanitizer und Modellwahl testen
+      - name: Guardrail-Sanitizer und Routen-Hunter testen
         run: python3 -m unittest discover -s control/tests -p 'test_*.py' -v
 
       - name: OpenHands CLI installieren
@@ -131,12 +131,36 @@ jobs:
             echo "PROFILE=$PROFILE"
           } >> "$GITHUB_ENV"
 
-      - name: Modellroute prüfen
+      - name: Gratis-Route jagen
+        id: route
         env:
           MODEL_INPUT: ${{ inputs.model }}
+          # Jeder hinterlegte Schlüssel erweitert die Jagd automatisch; fehlende
+          # Secrets werden übersprungen, nicht als Fehler behandelt.
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python3 control/scripts/waehle_modell.py
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          GH_MODELS_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
+          HUNTER_TIMEOUT: "20"
+          HUNTER_ALLOW_PAID: "0"
+        run: |
+          set -euo pipefail
+          python3 control/scripts/free_route_hunter.py \
+            --report "$RUNNER_TEMP/route-report.json" \
+            --summary
+
+      - name: Routen-Report bereitstellen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: route-report
+          path: ${{ runner.temp }}/route-report.json
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: OpenHands-Superagent ausführen
         env:
@@ -262,7 +286,7 @@ jobs:
             echo ""
             echo "- Zielprojekt: \`$TARGET_REPO\`"
             echo "- Profil: \`$PROFILE\`"
-            echo "- Modellroute: \`${LLM_MODEL}\`"
+            echo "- Modellroute: \`${LLM_MODEL}\` (${LLM_ROUTE_NAME:-unbekannt})"
             echo "- Branch: \`$BRANCH\`"
             echo "- Draft-PR: $PR_URL"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -275,6 +299,6 @@ jobs:
             echo ""
             echo "- Zielprojekt: \`$TARGET_REPO\`"
             echo "- Branch: \`${BRANCH:-nicht angelegt}\`"
-            echo "- Modellroute: \`${LLM_MODEL:-keine}\`"
+            echo "- Modellroute: \`${LLM_MODEL:-keine}\`${LLM_ROUTE_NAME:+ (${LLM_ROUTE_NAME})}"
             echo "- Draft-PR: ${{ steps.draft_pr.outputs.PR_URL || 'keiner erstellt' }}"
           } >> "$GITHUB_STEP_SUMMARY"

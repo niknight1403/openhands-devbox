@@ -55,9 +55,10 @@ zurück.
 
 ## Grenzen, die die App nicht aufhebt
 
-- Modellguthaben und Anbieterverfügbarkeit entscheiden über den Erfolg eines Laufs. Die
-  Modellroute wird vor jedem Lauf mit einem Mini-Aufruf geprüft; ohne erreichbare Route startet
-  kein Agent.
+- Modellguthaben und Anbieterverfügbarkeit entscheiden über den Erfolg eines Laufs. Bleibt das
+  Feld **Modell** leer, jagt der Free Route Hunter vor dem Lauf automatisch eine erreichbare
+  kostenlose Route und prüft sie mit einem Mini-Aufruf; ohne erreichbare Route startet kein
+  Agent. Ein eingetragenes Modell wird stattdessen zuerst geprüft.
 - GitHub-Actions-Guthaben und Laufzeitlimits begrenzen die Länge eines Durchlaufs (90 Minuten).
 - Ein Agent liefert selten beim ersten Lauf ein fertiges Produkt. Realistisch sind mehrere
   Durchläufe; die App macht sie nur bequem, nicht magisch.

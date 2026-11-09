@@ -9,12 +9,13 @@ Eine mobile, autonome Entwicklungsumgebung auf Basis der offiziellen OpenHands A
 - **Superagenten-Lauf:** drei getrennte OpenHands-CLI-Durchläufe — Architektur/Plan, Implementierung und Qualitätsreview — mit gemeinsamem Workspace.
 - **Rollenprofile:** zusätzlich auswählbare Modi für Implementierung, Frontend, Sicherheit und Qualität.
 - **Skills-Pack:** projektübergreifend übertragbare Skills unter `.agents/skills/`; die Action kopiert sie bei jedem Lauf in das Zielprojekt.
+- **Free Route Hunter:** sucht vor jedem Lauf automatisch eine erreichbare kostenlose Modellroute aus den hinterlegten Secrets, prüft sie mit einem echten Mini-Aufruf und protokolliert das Ergebnis als Artefakt.
 - **Sicherheitsnetz:** Agenten dürfen im Zielprojekt weder Workflows noch Secrets-Dateien ändern. Der Workflow verwirft solche Änderungen, erstellt einen Branch und öffnet bei Änderungen einen Draft-PR. Er pusht nie auf `main`.
 - **Zugriffsschutz:** Canvas verwendet einen lokal generierten Backend-API-Key. Der Codespaces-Port erhält private Sichtbarkeit als Standard; selbst wenn ein Port versehentlich öffentlich gestellt wird, ist der Backend-Zugriff weiterhin durch den API-Key geschützt.
 
 Der Agenten-Workflow bearbeitet standardmäßig `niknight1403/Agenten-Villa`. Das Ziel wird bewusst nur aus einer festen Liste freigegebener Repositories gewählt (Workflow-Eingabe `target`), damit ein Tippfehler oder Prompt keine beliebigen Repositories mit dem hinterlegten PAT öffnen kann.
 
-Vor jedem Lauf prüft `scripts/waehle_modell.py` die Modellroute mit einem echten Mini-Aufruf: Wunschmodell, dann die aktuell kostenlosen OpenRouter-Modelle (Code-Modelle zuerst), dann OpenAI, zuletzt eine keyfreie Route. Nur eine antwortende Route startet den Agenten; sonst bricht der Lauf mit klarer Meldung ab. Ein toter Modellname kann damit keinen stillen Fehllauf mehr erzeugen.
+Vor jedem Lauf jagt der **Free Route Hunter** (`scripts/free_route_hunter.py`) eine Route, die gerade wirklich antwortet: Wunschmodell zuerst, sonst alle Anbieter, für die ein Secret hinterlegt ist — OpenRouter mit live gelesenen `:free`-Modellen, dazu Gemini, Groq, Cerebras, Mistral, GitHub Models und Hugging Face —, am Ende eine schlüsselfreie Reserve. Jeder Kandidat wird mit einem echten Mini-Aufruf geprüft, sortiert nach Tool-Calling, Code-Eignung und Kontextfenster. Nur eine antwortende Route startet den Agenten; sonst bricht der Lauf mit der Liste aller geprüften Kandidaten ab. Details: [Free Route Hunter](docs/FREE-ROUTE-HUNTER.md).
 
 ## Android-App bauen und installieren
 
@@ -38,7 +39,7 @@ Ein leer gelassenes Aufgabenfeld startet den begrenzten Autonom-Wache-Auftrag. G
 
 ## Agent Canvas im Codespace
 
-Öffne dieses Repository als GitHub Codespace. Beim Start erzeugt `scripts/bootstrap-codespace.sh` einen zufälligen Canvas-API-Key in der Git-ignorierten Datei `.env` und startet Agent Canvas. Port **8000** wird mit privater Sichtbarkeit weitergeleitet. Der Container hat Zugriff auf den Repository-Workspace und Docker, um isolierte Agent-Container zu starten; verwende den Codespace daher nur mit vertrauenswürdigen Projekten.
+Öffne dieses Repository als GitHub Codespace. Beim Start erzeugt `scripts/bootstrap-codespace.sh` einen zufälligen Canvas-API-Key in der Git-ignorierten Datei `.env`, jagt eine erreichbare Gratis-Route und startet Agent Canvas mit dieser Route (`HUNTER_DISABLE=1` schaltet die Suche ab, `HUNTER_REFRESH=1` sucht neu). Port **8000** wird mit privater Sichtbarkeit weitergeleitet. Der Container hat Zugriff auf den Repository-Workspace und Docker, um isolierte Agent-Container zu starten; verwende den Codespace daher nur mit vertrauenswürdigen Projekten.
 
 Für die erste Anmeldung zeige den Schlüssel im Codespace-Terminal mit `bash scripts/show-canvas-key.sh` an und gib ihn in der Canvas-Anmeldemaske ein. Kopiere ihn nicht in Repository-Dateien, Chat-Prompts oder Logs. Die Datei bleibt im Codespace gespeichert und wird nicht in Git übernommen.
 
@@ -55,9 +56,18 @@ Siehe [Agentenprofile](docs/AGENT-PROFILES.md) und [Integrationen und Connectore
 
 Lege die folgenden Secrets in **Settings → Secrets and variables → Actions** dieses Repositorys an:
 
-- `OPENROUTER_API_KEY` — bevorzugte Modellroute für Actions.
-- `OPENAI_API_KEY` — optionaler Fallback, falls kein OpenRouter-Key gesetzt ist.
+- `OPENROUTER_API_KEY` — Hauptroute; der Hunter liest daraus live alle kostenlosen Modelle.
 - `OPENHANDS_GH_PAT` — GitHub-Token mit Zugriff auf das Zielrepository `Agenten-Villa`; für Branch-Push und Draft-PR.
+
+Jedes weitere Secret erweitert die Kaskade automatisch, ohne Codeänderung. Reihenfolge und Grenzen stehen in [Free Route Hunter](docs/FREE-ROUTE-HUNTER.md):
+
+- `GEMINI_API_KEY` oder `GOOGLE_API_KEY` — Google-AI-Studio-Free-Tier.
+- `GROQ_API_KEY`, `CEREBRAS_API_KEY`, `MISTRAL_API_KEY` — kostenlose Kontingente.
+- `HF_TOKEN` — Hugging Face Inference Providers.
+- `GH_MODELS_TOKEN` — GitHub Models.
+- `OPENAI_API_KEY` — kostenpflichtig, nur wenn ausdrücklich erlaubt.
+
+Der Workflow **Free Route Check** prüft die Kaskade zusätzlich täglich um 05:00 UTC und auf Knopfdruck, ohne einen Agenten zu starten. Sein Report zeigt, welche Route aktuell antwortet und welche Anbieter ohne Schlüssel dastehen.
 
 Lege Modell-Keys, die der Codespace benötigt, zusätzlich als Codespaces-Secrets an oder trage sie direkt in den Canvas-Einstellungen ein. Der Canvas-API-Key wird lokal generiert und benötigt kein GitHub-Secret. Der Modellanbieter-Key wird im Actions-Lauf dem OpenHands-Prozess für LLM-Aufrufe bereitgestellt; verwende dafür Keys mit möglichst engem Kontingent und ohne zusätzliche Anbieterrechte. Rohe Agentenlogs und Fehlerdetails werden nicht in Actions-Logs gestreamt, und der Aufgabenprompt wird nicht in Commit- oder PR-Metadaten kopiert. Zugangsdaten gehören trotzdem nie in Dateien, Prompts, Action-Eingaben oder Logs. Der Actions-PAT wird beim Checkout nicht an OpenHands übergeben und erst für den abschließenden Push-/PR-Schritt bereitgestellt.
 
