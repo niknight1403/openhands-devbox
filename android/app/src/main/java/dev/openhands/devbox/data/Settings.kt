@@ -13,6 +13,7 @@ data class Settings(
     val controlOwner: String = "niknight1403",
     val controlRepo: String = "openhands-devbox",
     val workflowFile: String = "openhands-task.yml",
+    val project: String = "",
     val targetRepo: String = "niknight1403/Agenten-Villa",
     val profile: String = "superagent",
     val model: String = "",
@@ -48,6 +49,7 @@ class SettingsStore(context: Context) {
         controlOwner = prefs.getString(KEY_CONTROL_OWNER, "niknight1403") ?: "niknight1403",
         controlRepo = prefs.getString(KEY_CONTROL_REPO, "openhands-devbox") ?: "openhands-devbox",
         workflowFile = prefs.getString(KEY_WORKFLOW, "openhands-task.yml") ?: "openhands-task.yml",
+        project = prefs.getString(KEY_PROJECT, "") ?: "",
         targetRepo = prefs.getString(KEY_TARGET, "niknight1403/Agenten-Villa") ?: "niknight1403/Agenten-Villa",
         profile = prefs.getString(KEY_PROFILE, "superagent") ?: "superagent",
         model = prefs.getString(KEY_MODEL, "") ?: "",
@@ -62,6 +64,7 @@ class SettingsStore(context: Context) {
             .putString(KEY_CONTROL_OWNER, settings.controlOwner)
             .putString(KEY_CONTROL_REPO, settings.controlRepo)
             .putString(KEY_WORKFLOW, settings.workflowFile)
+            .putString(KEY_PROJECT, settings.project)
             .putString(KEY_TARGET, settings.targetRepo)
             .putString(KEY_PROFILE, settings.profile)
             .putString(KEY_MODEL, settings.model)
@@ -76,6 +79,7 @@ class SettingsStore(context: Context) {
         const val KEY_CONTROL_OWNER = "control_owner"
         const val KEY_CONTROL_REPO = "control_repo"
         const val KEY_WORKFLOW = "workflow_file"
+        const val KEY_PROJECT = "project"
         const val KEY_TARGET = "target_repo"
         const val KEY_PROFILE = "profile"
         const val KEY_MODEL = "model"

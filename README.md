@@ -32,7 +32,7 @@ Die App liegt in `android/` (Kotlin, Jetpack Compose, minSdk 26). Der Workflow *
 cd android && ./gradlew assembleDebug
 ```
 
-In der App in den Einstellungen einen Fine-grained Token (Actions, Contents, Pull requests: je read and write) eintragen, Steuer-Repo und Zielprojekt prüfen, **Token prüfen** antippen. Danach genügt im Chat eine Aufgabe. Details, Ablauf und Grenzen: [Android-App](docs/ANDROID-APP.md).
+In der App in den Einstellungen einen Fine-grained Token (Actions, Contents, Pull requests: je read and write) eintragen, Steuer-Repo und Zielprojekt prüfen, **Token prüfen** antippen. Unter **Projekt** lässt sich ein Projekt aus `projects/` wählen, etwa CyberSarah Control Center; dann kommen Zielrepository und Auftrag aus der Devbox statt aus dem Zielfeld. Danach genügt im Chat eine Aufgabe. Details, Ablauf und Grenzen: [Android-App](docs/ANDROID-APP.md).
 
 Der Autonom-Modus ist eine bewusste Entscheidung: Ohne ihn bleibt jeder Lauf als Draft-PR zur Prüfung liegen. Erst der Schalter **Autonom** mergebarer PRs macht aus dem Chat einen durchlaufenden Auftrag; mit **Folgedurchläufen** prüft ein weiterer Lauf das Ergebnis und schließt Lücken.
 

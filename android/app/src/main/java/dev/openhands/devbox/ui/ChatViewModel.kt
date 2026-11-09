@@ -9,6 +9,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.openhands.devbox.data.AutonomyEngine
 import dev.openhands.devbox.data.GitHubApi
+import dev.openhands.devbox.data.Projects
 import dev.openhands.devbox.data.Settings
 import dev.openhands.devbox.data.SettingsStore
 import kotlinx.coroutines.CancellationException
@@ -67,7 +68,15 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     fun updateSettings(next: Settings) {
         store.save(next)
         settings = next
-        push(false, "Einstellungen gespeichert. Zielprojekt: ${next.targetRepo}.")
+        val projekt = Projects.findBySlug(next.project)
+        push(
+            false,
+            if (projekt != null) {
+                "Einstellungen gespeichert. Projekt: ${projekt.label}. Ziel: ${projekt.targetShort}."
+            } else {
+                "Einstellungen gespeichert. Zielprojekt: ${next.targetRepo}."
+            },
+        )
     }
 
     fun testConnection() {

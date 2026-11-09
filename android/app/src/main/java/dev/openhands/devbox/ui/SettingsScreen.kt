@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import dev.openhands.devbox.data.Projects
 import dev.openhands.devbox.data.Settings
 
 private val profileOptions = listOf("superagent", "implementer", "frontend", "security", "quality")
@@ -47,6 +48,7 @@ fun SettingsScreen(
     var controlOwner by remember(settings.controlOwner) { mutableStateOf(settings.controlOwner) }
     var controlRepo by remember(settings.controlRepo) { mutableStateOf(settings.controlRepo) }
     var workflowFile by remember(settings.workflowFile) { mutableStateOf(settings.workflowFile) }
+    var project by remember(settings.project) { mutableStateOf(settings.project) }
     var targetRepo by remember(settings.targetRepo) { mutableStateOf(settings.targetRepo) }
     var profile by remember(settings.profile) { mutableStateOf(settings.profile) }
     var model by remember(settings.model) { mutableStateOf(settings.model) }
@@ -92,6 +94,7 @@ fun SettingsScreen(
                                 controlOwner = controlOwner.trim(),
                                 controlRepo = controlRepo.trim(),
                                 workflowFile = workflowFile.trim(),
+                                project = project,
                                 targetRepo = targetRepo.trim(),
                                 profile = profile,
                                 model = model.trim(),
@@ -138,6 +141,28 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
+
+            Spacer(Modifier.height(4.dp))
+            Text("Projekt", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Ein Projekt bringt seinen Auftrag und sein Zielrepository aus der Devbox mit. Ist eines gewählt, gilt es statt des Zielfeldes oben.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FilterChip(
+                    selected = project.isBlank(),
+                    onClick = { project = "" },
+                    label = { Text("kein Projekt", style = MaterialTheme.typography.labelSmall) },
+                )
+                Projects.alle.forEach { eintrag ->
+                    FilterChip(
+                        selected = project == eintrag.slug,
+                        onClick = { project = eintrag.slug },
+                        label = { Text(eintrag.label, style = MaterialTheme.typography.labelSmall) },
+                    )
+                }
+            }
 
             Spacer(Modifier.height(4.dp))
             Text("Agentenprofil", style = MaterialTheme.typography.titleMedium)
@@ -202,6 +227,7 @@ fun SettingsScreen(
                             controlOwner = controlOwner.trim(),
                             controlRepo = controlRepo.trim(),
                             workflowFile = workflowFile.trim(),
+                            project = project,
                             targetRepo = targetRepo.trim(),
                             profile = profile,
                             model = model.trim(),

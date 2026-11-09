@@ -38,15 +38,29 @@ class AutonomyEngine(private val api: GitHubApi) {
         val branch = "agent/app-$slug"
 
         emit(Event.Info("Auftrag angenommen. Durchlauf ${request.iteration} von ${request.iterations}."))
-        emit(Event.Info("Zielprojekt: ${settings.targetRepo}. Profil: ${settings.profile}."))
+        val gewaehltesProjekt = Projects.findBySlug(settings.project)
+        if (gewaehltesProjekt != null) {
+            emit(
+                Event.Info(
+                    "Projekt: ${gewaehltesProjekt.label} (${gewaehltesProjekt.slug}). " +
+                        "Ziel: ${gewaehltesProjekt.targetShort}. Profil: ${settings.profile}.",
+                ),
+            )
+        } else {
+            emit(Event.Info("Zielprojekt: ${settings.targetRepo}. Profil: ${settings.profile}."))
+        }
 
         val inputs = buildMap {
             put("task", request.task)
             put("profile", settings.profile)
             put("model", settings.model)
             // Der Workflow akzeptiert nur freigegebene Kurznamen, die API braucht owner/repo.
-            put("target", settings.targetRepo.substringAfterLast('/'))
+            // Ein Projekt bestimmt sein Zielrepository selbst; der Kurzname kommt aus der Liste.
+            put("target", gewaehltesProjekt?.targetShort ?: settings.targetRepo.substringAfterLast('/'))
             put("client_run", slug)
+            if (gewaehltesProjekt != null) {
+                put("project", gewaehltesProjekt.slug)
+            }
         }
 
         val dispatchedAt = System.currentTimeMillis()
