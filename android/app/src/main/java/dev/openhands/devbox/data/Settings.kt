@@ -24,7 +24,32 @@ data class Settings(
     val controlRepoFullName: String get() = "$controlOwner/$controlRepo"
 
     fun isValid(): Boolean =
-        token.isNotBlank() && controlOwner.isNotBlank() && controlRepo.isNotBlank() && targetRepo.contains("/")
+        token.isNotBlank() &&
+            GITHUB_OWNER.matches(controlOwner) &&
+            GITHUB_REPO.matches(controlRepo) &&
+            validWorkflowPath(workflowFile) &&
+            validRepositoryFullName(targetRepo)
+
+    private fun validRepositoryFullName(value: String): Boolean {
+        val parts = value.split("/")
+        return parts.size == 2 && GITHUB_OWNER.matches(parts[0]) && GITHUB_REPO.matches(parts[1])
+    }
+
+    private fun validWorkflowPath(value: String): Boolean {
+        if (!value.endsWith(".yml", ignoreCase = true) && !value.endsWith(".yaml", ignoreCase = true)) {
+            return false
+        }
+        val parts = value.split("/")
+        return parts.isNotEmpty() && parts.all { part ->
+            part.isNotBlank() && part != "." && part != ".." && WORKFLOW_SEGMENT.matches(part)
+        }
+    }
+
+    private companion object {
+        val GITHUB_OWNER = Regex("^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$")
+        val GITHUB_REPO = Regex("^[A-Za-z0-9._-]{1,100}$")
+        val WORKFLOW_SEGMENT = Regex("^[A-Za-z0-9._-]+$")
+    }
 }
 
 class SettingsStore(context: Context) {
