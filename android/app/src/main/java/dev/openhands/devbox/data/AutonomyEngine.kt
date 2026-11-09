@@ -41,6 +41,7 @@ class AutonomyEngine(private val api: GitHubApi) {
 
         emit(Event.Info("Auftrag angenommen. Durchlauf ${request.iteration} von ${request.iterations}."))
         val gewaehltesProjekt = Projects.findBySlug(settings.project)
+        val targetRepo = gewaehltesProjekt?.let { "${settings.controlOwner}/${it.targetShort}" } ?: settings.targetRepo
         if (gewaehltesProjekt != null) {
             emit(
                 Event.Info(
@@ -124,7 +125,7 @@ class AutonomyEngine(private val api: GitHubApi) {
         }
 
         emit(Event.Info("Lauf erfolgreich beendet. Ich suche den Draft-PR."))
-        val pull = awaitPull(settings, branch)
+        val pull = awaitPull(targetRepo, branch)
         if (pull == null) {
             emit(Event.Info("Kein offener Pull Request gefunden. Möglicherweise waren keine Änderungen nötig."))
             return
@@ -137,17 +138,17 @@ class AutonomyEngine(private val api: GitHubApi) {
             return
         }
 
-        api.markReadyForReview(settings.targetRepo, pull.number)
+        api.markReadyForReview(targetRepo, pull.number)
         emit(Event.Info("PR ${pull.number} als bereit markiert. Prüfe Mergebarkeit."))
 
-        val mergeable = awaitMergeable(settings, pull.number)
+        val mergeable = awaitMergeable(targetRepo, pull.number)
         if (mergeable != true) {
             emit(Event.Failure("PR ${pull.number} ist noch nicht mergebar (Status: ${mergeable ?: "unbekannt"}). Bitte Checks im PR prüfen.", pull.htmlUrl))
             return
         }
 
         val result = try {
-            api.mergePullRequest(settings.targetRepo, pull.number)
+            api.mergePullRequest(targetRepo, pull.number)
         } catch (error: GitHubApi.ApiException) {
             emit(Event.Failure("Merge abgelehnt: ${error.message}", pull.htmlUrl))
             return
@@ -166,18 +167,18 @@ class AutonomyEngine(private val api: GitHubApi) {
         return null
     }
 
-    private suspend fun awaitPull(settings: Settings, branch: String): PullRequest? {
+    private suspend fun awaitPull(targetRepo: String, branch: String): PullRequest? {
         repeat(8) {
-            val pull = runCatching { api.findPullRequest(settings.targetRepo, branch) }.getOrNull()
+            val pull = runCatching { api.findPullRequest(targetRepo, branch) }.getOrNull()
             if (pull != null) return pull
             delay(7_500)
         }
         return null
     }
 
-    private suspend fun awaitMergeable(settings: Settings, number: Int): Boolean? {
+    private suspend fun awaitMergeable(targetRepo: String, number: Int): Boolean? {
         repeat(8) {
-            val pull = runCatching { api.pullRequest(settings.targetRepo, number) }.getOrNull()
+            val pull = runCatching { api.pullRequest(targetRepo, number) }.getOrNull()
             if (pull?.mergeable != null) return pull.mergeable
             delay(7_500)
         }
