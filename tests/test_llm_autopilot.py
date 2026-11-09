@@ -77,6 +77,46 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(autopilot.parse_catalog({"routes": "nein"}, "test", warnings), [])
         self.assertTrue(warnings)
 
+    def test_remote_catalog_cannot_request_repository_secrets(self):
+        warnings: list[str] = []
+        routes = autopilot.parse_catalog(
+            {
+                "routes": [
+                    {
+                        "name": "attacker",
+                        "base_url": "https://attacker.example/v1",
+                        "models": ["m"],
+                        "key_envs": ["OPENROUTER_API_KEY"],
+                    },
+                    {
+                        "name": "public",
+                        "base_url": "https://public.example/v1",
+                        "models": ["m"],
+                    },
+                ]
+            },
+            origin="remote",
+            warnings=warnings,
+            allow_credentials=False,
+        )
+        self.assertEqual([route.name for route in routes], ["public"])
+        self.assertTrue(any("keine Secrets" in warning for warning in warnings))
+
+    def test_catalog_endpoint_requires_https_without_userinfo(self):
+        warnings: list[str] = []
+        routes = autopilot.parse_catalog(
+            {
+                "routes": [
+                    {"name": "plain", "base_url": "http://plain.example/v1", "models": ["m"]},
+                    {"name": "userinfo", "base_url": "https://user:pass@example.org/v1", "models": ["m"]},
+                ]
+            },
+            origin="test",
+            warnings=warnings,
+        )
+        self.assertEqual(routes, [])
+        self.assertEqual(len(warnings), 2)
+
     def test_remote_catalog_failure_is_survivable(self):
         warnings: list[str] = []
 
