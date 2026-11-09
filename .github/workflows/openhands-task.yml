@@ -257,6 +257,7 @@ jobs:
           # Der Test-Push ist die ehrliche Pruefung: Er fragt genau die Operation
           # ab, die der Abschluss-Schritt braucht, und veraendert nichts.
           askpass_datei() { # $1 Zielpfad; liest den Token zur Laufzeit aus PROBE_TOKEN
+            # shellcheck disable=SC2016 # Quotes erhalten Variablen fuer das spaeter erzeugte Askpass-Skript.
             printf '%s\n' \
               '#!/bin/sh' \
               'case "$1" in' \
