@@ -66,11 +66,13 @@ Der Agentenlauf prüft seinen GitHub-Zugang vor jedem Modellaufruf und wählt ih
 1. **`OPENHANDS_GH_PAT`** aus den Repository-Secrets, falls hinterlegt und mit Schreibrecht auf das Zielprojekt.
 2. Sonst der **eingebaute `GITHUB_TOKEN`** des Workflows. Der Workflow fordert dafür `contents: write` und `pull-requests: write` an.
 
-Für Läufe im eigenen Repository (`target: openhands-devbox`) ist damit **kein Secret und kein manuell angelegter Token nötig**: Branch-Push und Draft-PR laufen sofort. Fehlt das Schreibrecht komplett, stoppt der Lauf nach Sekunden mit klarer Meldung, statt nach neunzig Minuten Agentenzeit am Push zu scheitern. Der Token erreicht den Agentenprozess nie; er wird erst im Abschluss-Schritt geladen und dort wieder verworfen, und er wird nie über `GITHUB_ENV` oder Logs verteilt.
+Für Läufe im eigenen Repository (`target: openhands-devbox`) ist damit **kein Secret und kein manuell angelegter Token nötig**: Branch-Push und Draft-PR laufen sofort. Geprüft wird mit einem `git push --dry-run` auf den eigenen Branch, also mit genau der Operation, die später zählt. Fehlt das Schreibrecht komplett, stoppt der Lauf nach Sekunden mit klarer Meldung und rotem Ausrufezeichen im Log, statt nach neunzig Minuten Agentenzeit am Push zu scheitern. Der Token erreicht den Agentenprozess nie; er wird erst im Abschluss-Schritt geladen und dort wieder verworfen, und er wird nie über `GITHUB_ENV` oder Logs verteilt.
 
 Nur für **fremde Zielprojekte** (`Agenten-Villa`, `LaunchpadControl`, …) braucht es weiterhin ein Repository-Secret `OPENHANDS_GH_PAT` — ein Fine-grained Token mit `Contents: read and write` und `Pull requests: read and write` auf genau diesen Repositories. Ein abgelaufener PAT bricht den Lauf nicht mehr ab: Die Vorprüfung fällt auf den eingebauten Token zurück, wo das möglich ist, und meldet den Rest als Warnung.
 
-Der Workflow **GitHub Token Check** prüft jeden Montag um 04:30 UTC und auf Knopfdruck, welcher Zugang auf welchem freigegebenen Repository wirklich schreiben darf, und schreibt das Ergebnis als Tabelle in die Lauf-Zusammenfassung. Er zeigt keine Token-Werte, nur HTTP-Code und Schreibrecht.
+Damit der eingebaute Token schreiben darf, muss das Repository einmalig unter **Settings → Actions → General → Workflow permissions** auf *Read and write permissions* stehen. Diese Einstellung ist der Deckel für alle Workflow-Läufe; ohne sie bleibt selbst ein korrekt deklariertes `contents: write` wirkungslos.
+
+Der Workflow **GitHub Token Check** prüft jeden Montag um 04:30 UTC und auf Knopfdruck beiden Wege: den eingebauten Token mit einem echten Test-Push auf einen Wegwerf-Ref (ohne Nebenwirkung) und den PAT per API auf allen freigegebenen Repositories. Das Ergebnis landet als Tabelle in der Lauf-Zusammenfassung, ohne Token-Werte, nur mit HTTP-Code und Schreibrecht.
 
 Ein Unterschied bleibt: PRs, die mit dem eingebauten `GITHUB_TOKEN` erstellt werden, lösen keine weiteren GitHub-Workflows aus (GitHub-Regel). Wer Folgeläufe auf dem PR braucht, nutzt den PAT.
 

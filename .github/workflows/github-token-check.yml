@@ -1,5 +1,5 @@
 # Prüft autonom, welcher GitHub-Zugang für Branch-Push und Draft-PR wirklich taugt.
-# Läuft wöchentlich und auf Knopfdruck; schreibt nur Statuszeilen und keine Tokens.
+# Läuft wöchentlich und auf Knopfdruck; zeigt HTTP-Codes, nie Tokenwerte.
 name: GitHub Token Check
 
 on:
@@ -38,14 +38,19 @@ jobs:
         run: |
           set -uo pipefail
           summary="$RUNNER_TEMP/github-token-check.md"
-          {
-            echo "### GitHub-Zugänge"
-            echo ""
-            echo "| Zugang | Repository | HTTP | Schreibrecht |"
-            echo "| --- | --- | --- | --- |"
-          } > "$summary"
 
-          probe() { # $1 = Token, $2 = Repository -> setzt PROBE_CODE und PROBE_PUSH
+          askpass_datei() { # $1 Zielpfad; liest den Token zur Laufzeit aus PROBE_TOKEN
+            printf '%s\n' \
+              '#!/bin/sh' \
+              'case "$1" in' \
+              '  *Username*) printf "%s\n" "x-access-token" ;;' \
+              '  *Password*) printf "%s\n" "$PROBE_TOKEN" ;;' \
+              '  *) exit 1 ;;' \
+              'esac' > "$1"
+            chmod 700 "$1"
+          }
+
+          probe() { # $1 Token, $2 Repository -> setzt PROBE_CODE und PROBE_PUSH
             local response
             response="$(curl -sS --max-time 20 -w '\n%{http_code}' \
               -H "Authorization: Bearer $1" \
@@ -59,7 +64,7 @@ jobs:
             fi
           }
 
-          identity() { # $1 = Token -> Anmeldename oder Fehlerhinweis
+          identity() { # $1 Token -> Anmeldename oder Fehlerhinweis
             local response code login
             response="$(curl -sS --max-time 20 -w '\n%{http_code}' \
               -H "Authorization: Bearer $1" https://api.github.com/user)" || response=$'\n000'
@@ -72,23 +77,41 @@ jobs:
             fi
           }
 
-          row() { # $1 Zugang, $2 Repository, $3 HTTP, $4 Schreibrecht
-            printf '| %s | %s | %s | %s |\n' "$1" "$2" "$3" "$4" >> "$summary"
-          }
+          # Der eingebaute Token lässt sich nicht am Repository-Objekt ablesen:
+          # dort steht das Recht des Aufrufers, nicht das des Workflow-Tokens.
+          # Ein echter Test-Push auf einen Wegwerf-Ref zeigt das Schreibrecht,
+          # ohne das Repository zu verändern.
+          builtin_push="nein"
+          if [ -n "${BUILTIN_TOKEN:-}" ]; then
+            askpass="$(mktemp)"
+            askpass_datei "$askpass"
+            if PROBE_TOKEN="$BUILTIN_TOKEN" GIT_ASKPASS="$askpass" GIT_TERMINAL_PROMPT=0 \
+                 git -c credential.helper= push --dry-run origin "HEAD:refs/heads/token-check-probe" >/dev/null 2>&1; then
+              builtin_push="ja"
+            fi
+            rm -f "$askpass"
+          fi
+          echo "Diagnose GITHUB_TOKEN, Rechte laut Repository-Objekt:"
+          curl -sS --max-time 20 -H "Authorization: Bearer ${BUILTIN_TOKEN:-}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}" \
+            | sed -n '/"permissions"/,/}/p' | head -n 12 || true
 
           failures=0
-          cross_repo_gaps=0
+          {
+            echo "### GitHub-Zugänge"
+            echo ""
+            echo "| Zugang | Repository | Schreibrecht | Hinweis |"
+            echo "| --- | --- | --- | --- |"
+            printf '| %s | %s | %s | %s |\n' "GITHUB_TOKEN" "eigenes Repository (Test-Push)" "$builtin_push" "gilt nur hier"
+          } > "$summary"
 
-          for repo in $TARGET_REPOS; do
-            full="niknight1403/${repo}"
-            probe "${BUILTIN_TOKEN:-}" "$full"
-            row "GITHUB_TOKEN" "$full" "$PROBE_CODE" "$PROBE_PUSH"
-            if [ "$repo" = "openhands-devbox" ] && { [ "$PROBE_CODE" != "200" ] || [ "$PROBE_PUSH" != "ja" ]; }; then
-              echo "::error::Der eingebaute GITHUB_TOKEN hat kein Schreibrecht auf ${full} (HTTP ${PROBE_CODE})."
-              failures=$((failures + 1))
-            fi
-            [ "$PROBE_PUSH" = "ja" ] || cross_repo_gaps=$((cross_repo_gaps + 1))
-          done
+          if [ "$builtin_push" = "ja" ]; then
+            echo "Eingebauter GITHUB_TOKEN: Schreibrecht auf ${GITHUB_REPOSITORY} bestätigt."
+          else
+            echo "::error::Der eingebaute GITHUB_TOKEN kann nicht in ${GITHUB_REPOSITORY} schreiben. Prüfe Settings -> Actions -> General -> Workflow permissions (Read and write)."
+            failures=$((failures + 1))
+          fi
 
           if [ -n "${PAT:-}" ]; then
             echo "OPENHANDS_GH_PAT angemeldet als: $(identity "$PAT")"
@@ -97,19 +120,13 @@ jobs:
             for repo in $TARGET_REPOS; do
               full="niknight1403/${repo}"
               probe "$PAT" "$full"
-              row "OPENHANDS_GH_PAT" "$full" "$PROBE_CODE" "$PROBE_PUSH"
-              case "$PROBE_CODE" in
-                200)
-                  if [ "$PROBE_PUSH" = "ja" ]; then
-                    pat_writable=$((pat_writable + 1))
-                  else
-                    pat_denied=$((pat_denied + 1))
-                  fi
-                  ;;
-                *)
-                  pat_denied=$((pat_denied + 1))
-                  ;;
-              esac
+              if [ "$PROBE_CODE" = "200" ] && [ "$PROBE_PUSH" = "ja" ]; then
+                pat_writable=$((pat_writable + 1))
+                printf '| %s | %s | %s | %s |\n' "OPENHANDS_GH_PAT" "$full" "ja" "HTTP 200" >> "$summary"
+              else
+                pat_denied=$((pat_denied + 1))
+                printf '| %s | %s | %s | %s |\n' "OPENHANDS_GH_PAT" "$full" "nein" "HTTP ${PROBE_CODE}" >> "$summary"
+              fi
             done
             if [ "$pat_writable" -eq 0 ]; then
               echo "::error::OPENHANDS_GH_PAT hat auf keinem freigegebenen Repository Schreibrecht. Laeufe im eigenen Repository fallen auf den eingebauten GITHUB_TOKEN zurueck; fremde Zielprojekte schlagen fehl."
@@ -119,7 +136,7 @@ jobs:
             fi
             {
               echo ""
-              echo "Der PAT wird nur für fremde Zielprojekte gebraucht; im eigenen Repository greift der eingebaute Token."
+              echo "Der PAT deckt die fremden Zielprojekte ab; im eigenen Repository greift zuerst ebenfalls der PAT, sonst der eingebaute Token."
             } >> "$summary"
           else
             echo "::notice::Kein OPENHANDS_GH_PAT hinterlegt. Laeufe im eigenen Repository funktionieren mit dem eingebauten GITHUB_TOKEN; fremde Zielprojekte brauchen das Secret."
@@ -129,15 +146,10 @@ jobs:
             } >> "$summary"
           fi
 
-          if [ "$cross_repo_gaps" -gt 0 ] && [ -z "${PAT:-}" ]; then
-            echo "::notice::Fuer Zielprojekte ausserhalb dieses Repositories ist das Secret OPENHANDS_GH_PAT noetig."
-          fi
-
           {
             echo ""
-            echo "Regel: eigener PAT zuerst, sonst der eingebaute GITHUB_TOKEN. Der Agentenlauf prüft die Reihenfolge vor jedem Modellaufruf und bricht bei fehlendem Schreibrecht sofort ab."
+            echo "Regel: eigener PAT zuerst, sonst der eingebaute GITHUB_TOKEN. Der Agentenlauf prüft die Reihenfolge per Test-Push vor dem ersten Modellaufruf und bricht bei fehlendem Schreibrecht sofort ab."
           } >> "$summary"
-
           cat "$summary" >> "$GITHUB_STEP_SUMMARY"
           exit "$failures"
 

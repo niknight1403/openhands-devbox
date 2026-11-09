@@ -33,10 +33,22 @@ class GitHubZugangTest(unittest.TestCase):
             if "GITHUB_ENV" in zeile and "GH_TOKEN=" in zeile:
                 self.fail(f"Token darf nicht über GITHUB_ENV verteilt werden: {zeile.strip()}")
 
-    def test_vorpruefung_bricht_ohne_schreibrecht_ab(self):
+    def test_vorpruefung_prueft_mit_test_push(self):
         self.assertIn("name: GitHub-Zugang für Push und Draft-PR bestimmen", self.task)
         self.assertIn("Kein GitHub-Zugang mit Schreibrecht", self.task)
-        self.assertIn('grep -Eq \'"push":[[:space:]]*true\'', self.task)
+        self.assertIn("push --dry-run", self.task)
+        self.assertIn("-c credential.helper=", self.task)
+
+    def test_askpass_liest_den_token_aus_der_umgebung(self):
+        # Die Hilfsdatei für den Test-Push darf keinen Tokenwert enthalten,
+        # sondern nur den Namen der Umgebungsvariable.
+        for inhalt in (self.task, self.check):
+            passwort_zeilen = [z for z in inhalt.splitlines() if "*Password*" in z]
+            self.assertTrue(passwort_zeilen, "Askpass-Zeile fehlt")
+            for zeile in passwort_zeilen:
+                # Nur eine Variable, nie ein Tokenwert.
+                self.assertIn("$", zeile)
+                self.assertNotRegex(zeile, r"(gh[pousr]_|github_pat_)[A-Za-z0-9_]{10,}")
 
     def test_check_workflow_prueft_alle_freigegebenen_ziele(self):
         for repo in (

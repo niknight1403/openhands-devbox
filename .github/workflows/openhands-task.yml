@@ -115,34 +115,45 @@ jobs:
           BUILTIN_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -uo pipefail
-          can_push() {
-            # $1 = Token, $2 = Bezeichnung des Zugangs
-            local token="$1" label="$2" response code body
+          # Der Test-Push ist die ehrliche Pruefung: Er fragt genau die Operation
+          # ab, die der Abschluss-Schritt braucht, und veraendert nichts.
+          askpass_datei() { # $1 Zielpfad; liest den Token zur Laufzeit aus PROBE_TOKEN
+            printf '%s\n' \
+              '#!/bin/sh' \
+              'case "$1" in' \
+              '  *Username*) printf "%s\n" "x-access-token" ;;' \
+              '  *Password*) printf "%s\n" "$PROBE_TOKEN" ;;' \
+              '  *) exit 1 ;;' \
+              'esac' > "$1"
+            chmod 700 "$1"
+          }
+          test_push() { # $1 Token, $2 Bezeichnung
+            local token="$1" label="$2" askpass ausgabe
             if [ -z "$token" ]; then
               echo "::warning::${label} ist nicht hinterlegt."
               return 1
             fi
-            response="$(curl -sS --max-time 20 -w '\n%{http_code}' \
-              -H "Authorization: Bearer ${token}" \
-              -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/${TARGET_REPO}")" || response=$'\n000'
-            code="$(printf '%s' "$response" | tail -n1)"
-            body="$(printf '%s' "$response" | sed '$d')"
-            if [ "$code" = "200" ] && printf '%s' "$body" | grep -Eq '"push":[[:space:]]*true'; then
-              echo "Schreibrecht auf ${TARGET_REPO} bestätigt (${label})."
+            askpass="$(mktemp)"
+            askpass_datei "$askpass"
+            if ausgabe="$(PROBE_TOKEN="$token" GIT_ASKPASS="$askpass" GIT_TERMINAL_PROMPT=0 \
+                 git -c credential.helper= -C workspace push --dry-run origin "HEAD:refs/heads/${BRANCH}" 2>&1)"; then
+              rm -f "$askpass"
+              echo "Test-Push nach ${TARGET_REPO} bestaetigt (${label})."
               return 0
             fi
-            echo "::warning::${label} hat kein Schreibrecht auf ${TARGET_REPO} (HTTP ${code})."
+            rm -f "$askpass"
+            ausgabe="$(printf '%s' "$ausgabe" | sed -E 's/(gh[pousr]_|github_pat_)[A-Za-z0-9_]+/<entfernt>/g' | tail -n1)"
+            echo "::warning::${label} kann nicht nach ${TARGET_REPO} pushen: ${ausgabe:-unbekannter Grund}"
             return 1
           }
           SOURCE=""
-          if can_push "${PAT:-}" "OPENHANDS_GH_PAT"; then
+          if test_push "${PAT:-}" "OPENHANDS_GH_PAT"; then
             SOURCE="OPENHANDS_GH_PAT"
-          elif can_push "${BUILTIN_TOKEN:-}" "GITHUB_TOKEN"; then
+          elif test_push "${BUILTIN_TOKEN:-}" "GITHUB_TOKEN"; then
             SOURCE="GITHUB_TOKEN"
           else
             echo "::error::Kein GitHub-Zugang mit Schreibrecht auf ${TARGET_REPO}; der Lauf stoppt, bevor Modellkontingent verbraucht wird."
-            echo "::error::Fuer Laeufe im eigenen Repository genuegt der eingebaute GITHUB_TOKEN. Fuer fremde Zielprojekte wird das Repository-Secret OPENHANDS_GH_PAT benoetigt (Fine-grained: Contents und Pull requests, je read and write)."
+            echo "::error::Im eigenen Repository hilft Settings -> Actions -> General -> Workflow permissions (Read and write). Fuer fremde Zielprojekte wird das Repository-Secret OPENHANDS_GH_PAT benoetigt (Fine-grained: Contents und Pull requests, je read and write)."
             exit 1
           fi
           echo "GH_TOKEN_SOURCE=${SOURCE}" >> "$GITHUB_ENV"
