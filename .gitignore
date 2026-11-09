@@ -9,3 +9,4 @@ openhands-state/
 openhands-*.log
 route-report.json
 .env-route-report.json
+llm-route-status.json

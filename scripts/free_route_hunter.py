@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shlex
 import sys
 import time
 import urllib.error
@@ -422,7 +423,9 @@ def build_candidates(
     timeout: float = DEFAULT_TIMEOUT,
 ) -> list[ModelInfo]:
     """Baut die geordnete Kandidatenliste aus Wunschmodell und vorhandenen Schlüsseln."""
+    exclude = excluded_labels(env)
     forced = forced_candidates(env.get("MODEL_INPUT") or env.get("HUNTER_MODEL") or "")
+    forced = [info for info in forced if info.label not in exclude and info.model not in exclude]
     if forced:
         # Ausdrücklicher Wunsch schlägt die Jagd: nur diese Route wird geprüft.
         return forced
@@ -440,7 +443,21 @@ def build_candidates(
             models = [ModelInfo(provider=provider.name, model=model) for model in provider.models]
         candidates.extend(rank_candidates(models, prefer)[:max_per_provider])
 
-    return rank_candidates(candidates, prefer)
+    ordered = rank_candidates(candidates, prefer)
+    hints = [
+        info
+        for info in load_status_hints(env)
+        if info.label not in exclude and info.model not in exclude and usable(info, env)
+    ]
+    hint_keys = {(info.provider, info.model) for info in hints}
+    filtered = [
+        info
+        for info in ordered
+        if (info.provider, info.model) not in hint_keys and info.label not in exclude and info.model not in exclude
+    ]
+    if hints:
+        print(f"Autopilot-Hinweise übernommen: {', '.join(info.label for info in hints)}")
+    return hints + filtered
 
 
 def hunt(
@@ -496,12 +513,56 @@ def route_env(info: ModelInfo, api_key: str) -> dict[str, str]:
     }
 
 
-def write_env(values: dict[str, str], path: str | None) -> None:
+def write_env(values: dict[str, str], path: str | None, shell: bool = False) -> None:
+    """Schreibt die Routenwerte; ``shell=True`` erzeugt eine sourcebare Export-Datei."""
     if not path:
         return
     with open(path, "a", encoding="utf-8") as handle:
         for key, value in values.items():
-            handle.write(f"{key}={value}\n")
+            if shell:
+                handle.write(f"export {key}={shlex.quote(value)}\n")
+            else:
+                handle.write(f"{key}={value}\n")
+
+
+def excluded_labels(env: dict[str, str]) -> set[str]:
+    """Routen, die in diesem Lauf nicht erneut geprüft werden (z. B. nach HTTP 429)."""
+    raw = env.get("HUNTER_EXCLUDE", "")
+    return {item.strip() for item in raw.replace(";", ",").split(",") if item.strip()}
+
+
+def load_status_hints(env: dict[str, str]) -> list[ModelInfo]:
+    """Vom Autopilot bestätigte Routen aus dessen Status-JSON, Werkzeugrouten zuerst."""
+    path = env.get("HUNTER_STATUS_FILE", "").strip()
+    if not path or not os.path.isfile(path):
+        return []
+    try:
+        with open(path, encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except (OSError, ValueError):
+        return []
+    entries = payload.get("routes") if isinstance(payload, dict) else None
+    if not isinstance(entries, list):
+        return []
+    ranked: list[tuple[int, ModelInfo]] = []
+    for entry in entries:
+        if not isinstance(entry, dict) or not entry.get("chat_ok"):
+            continue
+        provider = entry.get("provider")
+        model = entry.get("model")
+        if not isinstance(provider, str) or not isinstance(model, str):
+            continue
+        if provider not in PROVIDER_BY_NAME:
+            continue
+        ranked.append((0 if entry.get("tools_ok") else 1, ModelInfo(provider=provider, model=model)))
+    ranked.sort(key=lambda item: item[0])
+    return [info for _, info in ranked]
+
+
+def usable(info: ModelInfo, env: dict[str, str]) -> bool:
+    """Route ist mit den vorhandenen Zugangsdaten nutzbar."""
+    provider = PROVIDER_BY_NAME[info.provider]
+    return not provider.needs_key or bool(provider_credential(provider, env))
 
 
 def build_report(
@@ -565,6 +626,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--json", action="store_true", help="Report zusätzlich auf stdout ausgeben")
     parser.add_argument("--list", action="store_true", help="Nur Kandidaten anzeigen, keine Aufrufe")
     parser.add_argument("--include-paid", action="store_true", help="Bezahlte Anbieter zulassen")
+    parser.add_argument("--exclude", default="", help="Routen ausschließen, z. B. groq:llama-3.3-70b-versatile")
+    parser.add_argument("--status-file", default="", help="Status-JSON des LLM-Autopilots als Hinweis")
+    parser.add_argument("--shell-export", action="store_true", help="Ausgabedatei mit 'export KEY=...' schreiben")
     return parser.parse_args(argv)
 
 
@@ -578,6 +642,10 @@ def main(argv: list[str] | None = None, env: dict[str, str] | None = None, disco
         environment["HUNTER_PREFER"] = args.prefer
     if args.min_context is not None:
         environment["HUNTER_MIN_CONTEXT"] = str(args.min_context)
+    if args.exclude:
+        environment["HUNTER_EXCLUDE"] = args.exclude
+    if args.status_file:
+        environment["HUNTER_STATUS_FILE"] = args.status_file
 
     timeout = args.timeout or float(environment.get("HUNTER_TIMEOUT", DEFAULT_TIMEOUT) or DEFAULT_TIMEOUT)
     max_per_provider = args.max_per_provider or int(
@@ -637,7 +705,11 @@ def main(argv: list[str] | None = None, env: dict[str, str] | None = None, disco
         return 4
 
     values = route_env(chosen, provider_credential(PROVIDER_BY_NAME[chosen.provider], environment))
-    write_env(values, args.env_file if args.env_file is not None else environment.get("GITHUB_ENV"))
+    write_env(
+        values,
+        args.env_file if args.env_file is not None else environment.get("GITHUB_ENV"),
+        shell=args.shell_export,
+    )
     print(f"::notice::Gratis-Route bereit: {chosen.label} (HTTP {check.status}, {check.latency_ms} ms)")
     return 0
 

@@ -195,6 +195,57 @@ class CandidateBuildingTests(unittest.TestCase):
         self.assertEqual(candidates[0].provider, "groq")
 
 
+class AutopilotHintTests(unittest.TestCase):
+    def write_status(self, folder, routes):
+        path = os.path.join(folder, "status.json")
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump({"generated_at": "2026-01-01T00:00:00+00:00", "routes": routes}, handle)
+        return path
+
+    def test_exclude_removes_route(self):
+        env = {"OPENROUTER_API_KEY": "k", "HUNTER_EXCLUDE": "openrouter:qwen/qwen3-coder:free"}
+        models = [hunter.ModelInfo("openrouter", "qwen/qwen3-coder:free", 262144, True)]
+        candidates = hunter.build_candidates(env, discover=fake_discovery(models))
+        self.assertNotIn("qwen/qwen3-coder:free", [info.model for info in candidates])
+
+    def test_status_hints_go_first(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = self.write_status(
+                folder,
+                [
+                    {"provider": "openrouter", "model": "weak/model:free", "chat_ok": True, "tools_ok": False},
+                    {"provider": "openrouter", "model": "tool/model:free", "chat_ok": True, "tools_ok": True},
+                    {"provider": "gemini", "model": "gemini-2.5-flash", "chat_ok": True, "tools_ok": True},
+                ],
+            )
+            env = {"OPENROUTER_API_KEY": "k", "HUNTER_STATUS_FILE": path}
+            discover = fake_discovery([hunter.ModelInfo("openrouter", "native/model:free", 262144, True)])
+            labels = [info.label for info in hunter.build_candidates(env, discover=discover)]
+        # Werkzeugroute zuerst, danach die bestätigte Route ohne Werkzeuge; gemini hat keinen Schlüssel
+        self.assertEqual(labels[:2], ["openrouter:tool/model:free", "openrouter:weak/model:free"])
+        self.assertIn("openrouter:native/model:free", labels)
+
+    def test_missing_status_file_is_no_error(self):
+        env = {"OPENROUTER_API_KEY": "k", "HUNTER_STATUS_FILE": "/tmp/gibt-es-nicht-xyz.json"}
+        candidates = hunter.build_candidates(env, discover=fake_discovery([hunter.ModelInfo("openrouter", "a:free", 64000, True)]))
+        self.assertTrue(candidates)
+
+    def test_shell_export_is_sourceable(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "route.env")
+            hunter.write_env(
+                {"LLM_MODEL": "openrouter/a:free", "LLM_ROUTE_NAME": "weird name", "LLM_API_KEY": "sk-test+1/2="},
+                path,
+                shell=True,
+            )
+            with open(path, encoding="utf-8") as handle:
+                content = handle.read()
+        self.assertIn("export LLM_MODEL=openrouter/a:free", content)
+        # Werte mit Leerzeichen werden zitiert, einfache Werte bleiben schlank
+        self.assertIn("export LLM_ROUTE_NAME='weird name'", content)
+        self.assertIn("export LLM_API_KEY=sk-test+1/2=", content)
+
+
 class HuntTests(unittest.TestCase):
     def setUp(self):
         self.candidates = [

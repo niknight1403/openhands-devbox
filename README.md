@@ -10,12 +10,19 @@ Eine mobile, autonome Entwicklungsumgebung auf Basis der offiziellen OpenHands A
 - **Rollenprofile:** zusätzlich auswählbare Modi für Implementierung, Frontend, Sicherheit und Qualität.
 - **Skills-Pack:** projektübergreifend übertragbare Skills unter `.agents/skills/`; die Action kopiert sie bei jedem Lauf in das Zielprojekt.
 - **Free Route Hunter:** sucht vor jedem Lauf automatisch eine erreichbare kostenlose Modellroute aus den hinterlegten Secrets, prüft sie mit einem echten Mini-Aufruf und protokolliert das Ergebnis als Artefakt.
+- **LLM-Autopilot:** prüft alle sechs Stunden alle erreichbaren Routen samt Werkzeugaufruf, veröffentlicht den Status auf dem Branch `autopilot/status` und übernimmt konfigurierte Plugin-Packs. Fällt eine Route mitten im Lauf aus, jagt der Workflow sofort Ersatz und wiederholt die Rolle.
 - **Sicherheitsnetz:** Agenten dürfen im Zielprojekt weder Workflows noch Secrets-Dateien ändern. Der Workflow verwirft solche Änderungen, erstellt einen Branch und öffnet bei Änderungen einen Draft-PR. Er pusht nie auf `main`.
 - **Zugriffsschutz:** Canvas verwendet einen lokal generierten Backend-API-Key. Der Codespaces-Port erhält private Sichtbarkeit als Standard; selbst wenn ein Port versehentlich öffentlich gestellt wird, ist der Backend-Zugriff weiterhin durch den API-Key geschützt.
 
 Der Agenten-Workflow bearbeitet standardmäßig `niknight1403/Agenten-Villa`. Das Ziel wird bewusst nur aus einer festen Liste freigegebener Repositories gewählt (Workflow-Eingabe `target`), damit ein Tippfehler oder Prompt keine beliebigen Repositories mit dem hinterlegten PAT öffnen kann.
 
 Vor jedem Lauf jagt der **Free Route Hunter** (`scripts/free_route_hunter.py`) eine Route, die gerade wirklich antwortet: Wunschmodell zuerst, sonst alle Anbieter, für die ein Secret hinterlegt ist — OpenRouter mit live gelesenen `:free`-Modellen, dazu Gemini, Groq, Cerebras, Mistral, GitHub Models und Hugging Face —, am Ende eine schlüsselfreie Reserve. Jeder Kandidat wird mit einem echten Mini-Aufruf geprüft, sortiert nach Tool-Calling, Code-Eignung und Kontextfenster. Nur eine antwortende Route startet den Agenten; sonst bricht der Lauf mit der Liste aller geprüften Kandidaten ab. Details: [Free Route Hunter](docs/FREE-ROUTE-HUNTER.md).
+
+## Autopilot: dauerhaft funktionsfähige Routen
+
+Der **LLM Autopilot** (`.github/workflows/llm-autopilot.yml`) läuft alle sechs Stunden und prüft jede erreichbare Route mit zwei echten Aufrufen: einer beantwortet einen Mini-Prompt, der zweite verlangt einen Werkzeugaufruf. Nur eine bestätigte `tool_calls`-Antwort gilt als Werkzeugroute. Das Ergebnis steht als Artefakt und auf dem Branch `autopilot/status`; der Agentenlauf lädt diesen Status vorab und prüft bestätigte Routen zuerst.
+
+Weitere Routen kommen ohne Codeänderung dazu: lokal in `config/route-catalog.json` oder entfernt über die Repository-Variable `AUTOPILOT_CATALOG_URLS`. Plugin-Packs im AgentSkills-Format werden aus `config/plugin-packs.json` geprüft und bei `mode: install` in das Zielprojekt kopiert. Fällt eine Route mitten im Lauf aus, jagt der Workflow eine Ersatzroute (bis zu zwei Versuche) statt abzubrechen. Details und Stellschrauben: [LLM-Autopilot](docs/LLM-AUTOPILOT.md).
 
 ## Android-App bauen und installieren
 
