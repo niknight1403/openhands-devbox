@@ -8,7 +8,7 @@ Eine mobile, autonome Entwicklungsumgebung auf Basis der offiziellen OpenHands A
 - **Agent Canvas:** aktuelle OpenHands-Steueroberfläche mit LLM-/Agent-Profilen, MCP-Server-Einstellungen und Projektkontext.
 - **Superagenten-Lauf:** drei getrennte OpenHands-CLI-Durchläufe — Architektur/Plan, Implementierung und Qualitätsreview — mit gemeinsamem Workspace.
 - **Rollenprofile:** zusätzlich auswählbare Modi für Implementierung, Frontend, Sicherheit und Qualität.
-- **Skills-Pack:** projektübergreifend übertragbare Skills unter `.agents/skills/`; die Action kopiert sie bei jedem Lauf in das Zielprojekt.
+- **Skills-Pack:** sechs projektübergreifend übertragbare Skills unter `.agents/skills/`, darunter [automatisches Refactoring](.agents/skills/openhands-devbox-automated-refactoring/SKILL.md); die Action kopiert sie bei jedem Lauf in das Zielprojekt.
 - **Free Route Hunter:** sucht vor jedem Lauf automatisch eine erreichbare kostenlose Modellroute aus den hinterlegten Secrets, prüft sie mit einem echten Mini-Aufruf und protokolliert das Ergebnis als Artefakt.
 - **LLM-Autopilot:** prüft alle sechs Stunden alle erreichbaren Routen samt Werkzeugaufruf, veröffentlicht den Status auf dem Branch `autopilot/status` und übernimmt konfigurierte Plugin-Packs. Fällt eine Route mitten im Lauf aus, jagt der Workflow sofort Ersatz und wiederholt die Rolle.
 - **Sicherheitsnetz:** Agenten dürfen im Zielprojekt weder Workflows noch Secrets-Dateien ändern. Der Workflow verwirft solche Änderungen, erstellt einen Branch und öffnet bei Änderungen einen Draft-PR. Er pusht nie auf `main`.
