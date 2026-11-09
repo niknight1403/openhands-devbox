@@ -20,8 +20,10 @@ permissions:
   contents: write
   pull-requests: write
 
+# Eigene Gruppe, nicht die des aufgerufenen Workflows: teilen sich Aufrufer und
+# aufgerufener Workflow eine Gruppe, bricht GitHub den Lauf als Deadlock ab.
 concurrency:
-  group: openhands-agenten-lauf
+  group: cybersarah-autopilot
   cancel-in-progress: false
 
 jobs:
