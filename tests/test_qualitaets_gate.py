@@ -22,10 +22,10 @@ class GateTest(unittest.TestCase):
             self.assertIn(erwartet, namen)
 
     def test_bericht_laeuft_und_nennt_fehlende_werkzeuge(self):
-        daten = gate.bericht(WURZEL, ["pytest", "gibtsnicht"])
+        # Bewusst nicht pytest: ein Test, der pytest startet, startet sich selbst.
+        daten = gate.bericht(WURZEL, ["kompilat", "gibtsnicht"])
         self.assertIn("gibtsnicht", daten["fehlend"], "unbekannter Name muss gemeldet werden")
-        if daten["werkzeuge"]:
-            self.assertEqual(daten["werkzeuge"][0]["name"], "pytest")
+        self.assertEqual([e["name"] for e in daten["werkzeuge"]], ["kompilat"])
 
     def test_kompilat_ist_immer_verfuegbar_und_sauber(self):
         daten = gate.bericht(WURZEL, ["kompilat"])

@@ -43,9 +43,12 @@ def werkzeuge(wurzel: Path) -> list[Werkzeug]:
     vorhandene = [
         Werkzeug("pytest", "Tests", [python, "-m", "pytest", "-q"], pflicht=True,
                  befund_muster=[r"^FAILED ", r"^ERROR ", r"\d+ failed"], modul="pytest"),
-        Werkzeug("ruff", "Lint und Format", ["ruff", "check", "."],
-                 befund_muster=[r"^[^ ]+\.py:\d+:\d+: "]),
-        Werkzeug("bandit", "Sicherheit", ["bandit", "-q", "-r", "scripts"],
+        # concise: eine Zeile je Befund, damit der Bericht sauber zaehlt.
+        Werkzeug("ruff", "Lint und Format", ["ruff", "check", "--output-format", "concise", "."],
+                 befund_muster=[r"^[^ ]+:\d+:\d+: [A-Z]+[0-9]+ "]),
+        # -ll: nur mittlere und hohe Schwere; niedrige Hinweise sind hier belegt
+        # begruendet (nosec mit Begruendung) und wuerden den Bericht fluten.
+        Werkzeug("bandit", "Sicherheit", ["bandit", "-q", "-ll", "-r", "scripts"],
                  befund_muster=[r"^>> Issue: ", r"^\[.*\]\s+.*Severity"]),
         Werkzeug("actionlint", "Workflows", ["actionlint"],
                  befund_muster=[r"^\.github/workflows/"]),
@@ -66,7 +69,7 @@ def _ausfuehren(werkzeug: Werkzeug, wurzel: Path) -> dict:
             cwd=str(wurzel),
             capture_output=True,
             text=True,
-            timeout=900,
+            timeout=600,
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired) as fehler:

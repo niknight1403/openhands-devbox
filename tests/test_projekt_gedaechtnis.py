@@ -41,9 +41,8 @@ class GedaechtnisTest(unittest.TestCase):
 
     def test_ungueltiger_projektname_wird_abgelehnt(self):
         for name in ["", "Gross", "../boese", "a"]:
-            with self.subTest(name=name):
-                with self.assertRaises(ValueError):
-                    gedaechtnis.pfad_fuer(self.wurzel, name)
+            with self.subTest(name=name), self.assertRaises(ValueError):
+                gedaechtnis.pfad_fuer(self.wurzel, name)
 
     def test_laden_zeigt_neueste_zuerst_und_warnungen_vorn(self):
         gedaechtnis.eintrag(self.pfad, "testprojekt", "lauf", "alt", datum="2026-11-01")

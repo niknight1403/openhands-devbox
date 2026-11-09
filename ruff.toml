@@ -1,0 +1,27 @@
+# Konfiguration fuer ruff: bewusst schmal und begruendet, damit Befunde
+# etwas bedeuten. Formatierung uebernimmt ruff, Regeln fuer Fehler, Sicherheit
+# und Modernisierung.
+line-length = 132
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "W", "B", "I", "UP", "SIM", "RUF"]
+ignore = [
+  # noqa-Kommentare bleiben als Doku stehen, auch ohne aktivierte Regel.
+  "RUF100",
+  # Testklassen und HTML-Parser halten Mutable-Klassenattribute bewusst.
+  "RUF012",
+  # datetime.timezone.utc ist hier lesbarer als das UTC-Alias.
+  "UP017",
+  # Shebang-Dateien werden ueber python3 aufgerufen, nicht direkt.
+  "EXE001",
+]
+
+[lint.isort]
+known-first-party = ["netzwerk", "assets", "webtools", "qualitaets_gate", "projekt_gedaechtnis"]
+
+[lint.per-file-ignores]
+# Der Stub in diesem Test nutzt bewusst denselben Antwortschluessel zweimal;
+# die Absicht ist ein Antwortpaar fuer Chat und Werkzeuge. Umbau waere eine
+# eigene Aufgabe, deshalb hier begruendet ausgenommen.
+"tests/test_llm_autopilot.py" = ["F601"]

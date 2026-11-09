@@ -303,7 +303,7 @@ class MainTests(unittest.TestCase):
             path = os.path.join(folder, "status.json")
             buffer = io.StringIO()
             with redirect_stdout(buffer):
-                code = autopilot.main(argv + ["--status", path], env=env, **injected)
+                code = autopilot.main([*argv, "--status", path], env=env, **injected)
             status = None
             if os.path.exists(path):
                 with open(path, encoding="utf-8") as handle:

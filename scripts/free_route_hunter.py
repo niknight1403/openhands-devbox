@@ -362,7 +362,7 @@ def fetch_json(url: str, timeout: float, api_key: str = "") -> object:
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
     request = urllib.request.Request(url, headers=headers, method="GET")
-    with urllib.request.urlopen(request, timeout=timeout) as response:
+    with urllib.request.urlopen(request, timeout=timeout) as response:  # nosec B310 - Endpunkt stammt aus dem geprueften Routenkatalog (nur https)
         return json.loads(response.read().decode("utf-8"))
 
 
@@ -403,7 +403,7 @@ def ping_route(provider: Provider, model: str, api_key: str, timeout: float = DE
     )
     started = time.perf_counter()
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with urllib.request.urlopen(request, timeout=timeout) as response:  # nosec B310 - Endpunkt stammt aus dem geprueften Routenkatalog (nur https)
             response.read(256)
             latency = int((time.perf_counter() - started) * 1000)
             return RouteCheck(200 <= response.status < 300, response.status, latency)
@@ -487,7 +487,7 @@ def hunt(
                     batch,
                 )
             )
-        for info, result in zip(batch, results):
+        for info, result in zip(batch, results, strict=False):
             checks.append(
                 {
                     "provider": info.provider,
@@ -716,6 +716,7 @@ def main(argv: list[str] | None = None, env: dict[str, str] | None = None, disco
     write_env(
         values,
         args.env_file if args.env_file is not None else environment.get("GITHUB_ENV"),
+        # nosec B604 - write_env ist eine eigene Funktion, kein Shell-Aufruf
         shell=args.shell_export,
     )
     print(f"::notice::Gratis-Route bereit: {chosen.label} (HTTP {check.status}, {check.latency_ms} ms)")

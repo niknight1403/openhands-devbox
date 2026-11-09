@@ -364,7 +364,7 @@ class MainTests(unittest.TestCase):
             return code, output, written, summary
 
     def test_no_candidates_exits_with_3(self):
-        code, output, written, _ = self.run_main([], {"HUNTER_ALLOW_PAID": ""}, fake_discovery([]), fake_ping({}))
+        code, _output, written, _ = self.run_main([], {"HUNTER_ALLOW_PAID": ""}, fake_discovery([]), fake_ping({}))
         # Pollinations bleibt als schlüsselfreie Reserve übrig; ohne Erreichbarkeit greift Exit 4.
         self.assertEqual(code, 4)
         self.assertEqual(written, {})

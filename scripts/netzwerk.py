@@ -89,7 +89,7 @@ def laden(
     ziel = pruefe_url(url, erlaube_privat=erlaube_privat)
     anfrage = urllib.request.Request(ziel, headers=KOPFZEILEN)
     try:
-        with urllib.request.urlopen(anfrage, timeout=max_sekunden) as antwort:
+        with urllib.request.urlopen(anfrage, timeout=max_sekunden) as antwort:  # nosec B310 - pruefe_url laesst nur http/https auf oeffentliche Adressen zu
             content_type = (antwort.headers.get("Content-Type") or "").split(";")[0].strip().lower()
             gemeldet = antwort.headers.get("Content-Length")
             if gemeldet and gemeldet.isdigit() and int(gemeldet) > max_bytes:

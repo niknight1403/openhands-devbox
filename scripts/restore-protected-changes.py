@@ -59,9 +59,7 @@ def is_protected(raw_path: bytes) -> bool:
         return True
     if name == ".env" or (name.startswith(".env.") and name not in ALLOWED_ENV_TEMPLATES):
         return True
-    if name in PROTECTED_NAMES or path.suffix.lower() in PROTECTED_SUFFIXES:
-        return True
-    return False
+    return name in PROTECTED_NAMES or path.suffix.lower() in PROTECTED_SUFFIXES
 
 
 def is_credential_file(raw_path: bytes) -> bool:

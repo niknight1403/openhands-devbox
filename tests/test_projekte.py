@@ -125,7 +125,7 @@ class CyberSarahAutopilotTest(unittest.TestCase):
 
     def test_kadenz_passt_zum_projekt(self):
         env_datei = (PROJEKTE / "cybersarah-control-center" / "project.env").read_text(encoding="utf-8")
-        cron_zeile = [z for z in env_datei.splitlines() if z.startswith("AUTOPILOT_CRON")][0]
+        cron_zeile = next(z for z in env_datei.splitlines() if z.startswith("AUTOPILOT_CRON"))
         cron = cron_zeile.split("=", 1)[1].strip().strip('"')
         geplant = [eintrag["cron"] for eintrag in trigger(self.daten)["schedule"]]
         self.assertIn(cron, geplant)

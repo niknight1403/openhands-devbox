@@ -40,7 +40,7 @@ class WorkflowVerdrahtungTest(unittest.TestCase):
 
     def test_gedaechtnis_wird_geladen_und_geschrieben(self):
         namen = [s.get("name", "") for s in self.schritte]
-        self.assertTrue(any("Projektgedächtnis und Dateien laden" == n for n in namen))
+        self.assertTrue(any(n == "Projektgedächtnis und Dateien laden" for n in namen))
         schreiber = [s for s in self.schritte if s.get("name") == "Projektgedächtnis fortschreiben"]
         self.assertEqual(len(schreiber), 1)
         self.assertIn("always()", schreiber[0]["if"])

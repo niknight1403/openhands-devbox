@@ -212,7 +212,7 @@ def post_json(url: str, payload: dict, api_key: str, timeout: float) -> tuple[in
     request = urllib.request.Request(url, data=body, headers=headers, method="POST")
     started = time.perf_counter()
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with urllib.request.urlopen(request, timeout=timeout) as response:  # nosec B310 - Endpunkt stammt aus dem geprueften Routenkatalog (nur https)
             raw = response.read()
             latency = int((time.perf_counter() - started) * 1000)
             try:
@@ -230,7 +230,7 @@ def fetch_json(url: str, timeout: float = DEFAULT_TIMEOUT, token: str = "") -> o
     if token:
         headers["Authorization"] = f"Bearer {token}"
     request = urllib.request.Request(url, headers=headers, method="GET")
-    with urllib.request.urlopen(request, timeout=timeout) as response:
+    with urllib.request.urlopen(request, timeout=timeout) as response:  # nosec B310 - Endpunkt stammt aus dem geprueften Routenkatalog (nur https)
         return json.loads(response.read().decode("utf-8"))
 
 
@@ -239,7 +239,7 @@ def fetch_text(url: str, timeout: float = DEFAULT_TIMEOUT, token: str = "") -> s
     if token:
         headers["Authorization"] = f"Bearer {token}"
     request = urllib.request.Request(url, headers=headers, method="GET")
-    with urllib.request.urlopen(request, timeout=timeout) as response:
+    with urllib.request.urlopen(request, timeout=timeout) as response:  # nosec B310 - Skill-URL zeigt auf eine feste, gepruefte Quelle in https
         return response.read(MAX_SKILL_BYTES + 1).decode("utf-8", errors="replace")
 
 
