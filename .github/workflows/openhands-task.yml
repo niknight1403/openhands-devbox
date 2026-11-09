@@ -160,7 +160,10 @@ jobs:
           echo "GitHub-Zugang: ${SOURCE}"
 
       - name: Guardrail-Sanitizer und Routen-Hunter testen
-        run: python3 -m unittest discover -s control/tests -p 'test_*.py' -v
+        # Die Tests lesen config/*.json relativ zum Arbeitsverzeichnis; im
+        # Kontroll-Checkout liegen sie unter control/.
+        working-directory: control
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
 
       - name: OpenHands CLI installieren
         run: |
@@ -177,9 +180,10 @@ jobs:
 
       - name: Plugin-Packs laut Autopilot-Konfiguration übernehmen
         continue-on-error: true
+        working-directory: control
         run: |
-          python3 control/scripts/llm_autopilot.py \
-            --install-packs workspace/.agents/skills \
+          python3 "$GITHUB_WORKSPACE/control/scripts/llm_autopilot.py" \
+            --install-packs "$GITHUB_WORKSPACE/workspace/.agents/skills" \
             --status "$RUNNER_TEMP/pack-status.json" \
             --summary
 
