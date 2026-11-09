@@ -141,9 +141,17 @@ class AutonomyEngine(private val api: GitHubApi) {
         api.markReadyForReview(targetRepo, pull.number)
         emit(Event.Info("PR ${pull.number} als bereit markiert. Prüfe Mergebarkeit."))
 
-        val mergeable = awaitMergeable(targetRepo, pull.number)
-        if (mergeable != true) {
-            emit(Event.Failure("PR ${pull.number} ist noch nicht mergebar (Status: ${mergeable ?: "unbekannt"}). Bitte Checks im PR prüfen.", pull.htmlUrl))
+        val mergeState = awaitMergeable(targetRepo, pull.number)
+        if (
+            mergeState?.state != "open" ||
+            mergeState.draft ||
+            mergeState.mergeable != true ||
+            mergeState.mergeableState != "clean"
+        ) {
+            val details = mergeState?.let {
+                "state=${it.state}, draft=${it.draft}, mergeable=${it.mergeable}, mergeable_state=${it.mergeableState ?: "unbekannt"}"
+            } ?: "GitHub-Mergezustand nicht rechtzeitig verfügbar"
+            emit(Event.Failure("PR ${pull.number} wird nicht automatisch gemergt: ${details}. Erforderlich ist ein offener, nicht-draft PR mit mergeable_state=clean.", pull.htmlUrl))
             return
         }
 
@@ -176,10 +184,12 @@ class AutonomyEngine(private val api: GitHubApi) {
         return null
     }
 
-    private suspend fun awaitMergeable(targetRepo: String, number: Int): Boolean? {
+    private suspend fun awaitMergeable(targetRepo: String, number: Int): PullRequest? {
         repeat(8) {
             val pull = runCatching { api.pullRequest(targetRepo, number) }.getOrNull()
-            if (pull?.mergeable != null) return pull.mergeable
+            if (pull?.mergeable != null && !pull.mergeableState.isNullOrBlank() && pull.mergeableState != "unknown") {
+                return pull
+            }
             delay(7_500)
         }
         return null
