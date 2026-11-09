@@ -62,7 +62,7 @@ Nur ein einziges Secret ist nötig, alles andere ist optional:
 | `HF_TOKEN` | Hugging-Face-Inference-Providers, Monatsquote |
 | `GH_MODELS_TOKEN` | GitHub Models, kostenloses Kontingent für öffentliche Repos |
 | `OPENAI_API_KEY` | kostenpflichtig, nur mit `HUNTER_ALLOW_PAID=1` oder erzwungenem Modell |
-| `OPENHANDS_GH_PAT` | unverändert für Branch-Push und Draft-PR |
+| `OPENHANDS_GH_PAT` | kein Modellschlüssel: nur für Branch-Push und Draft-PR in fremden Zielprojekten; im eigenen Repository greift der eingebaute `GITHUB_TOKEN` |
 
 Ein Schlüssel wird ausschließlich an seinen eigenen Anbieter geschickt. Der
 Hunter gibt keine Schlüssel aus, schreibt keine in Berichte und nennt im Log nur

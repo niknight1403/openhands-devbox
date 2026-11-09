@@ -1,0 +1,151 @@
+# Prüft autonom, welcher GitHub-Zugang für Branch-Push und Draft-PR wirklich taugt.
+# Läuft wöchentlich und auf Knopfdruck; schreibt nur Statuszeilen und keine Tokens.
+name: GitHub Token Check
+
+on:
+  schedule:
+    - cron: "30 4 * * 1"
+  workflow_dispatch:
+
+# Gleiche Rechte wie im Agentenlauf, damit der eingebaute Token realistisch
+# geprüft wird. Der Check selbst schreibt nichts ins Repository.
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: github-token-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PAT: ${{ secrets.OPENHANDS_GH_PAT }}
+      BUILTIN_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TARGET_REPOS: "openhands-devbox Agenten-Villa LaunchpadControl CyberSarah-Control-Center Agentforge2 AGI-Agenten"
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Konfigurationstests ausführen
+        run: python3 -m unittest discover -s tests -p 'test_github_token_config.py' -v
+
+      - name: Zugänge prüfen
+        run: |
+          set -uo pipefail
+          summary="$RUNNER_TEMP/github-token-check.md"
+          {
+            echo "### GitHub-Zugänge"
+            echo ""
+            echo "| Zugang | Repository | HTTP | Schreibrecht |"
+            echo "| --- | --- | --- | --- |"
+          } > "$summary"
+
+          probe() { # $1 = Token, $2 = Repository -> setzt PROBE_CODE und PROBE_PUSH
+            local response
+            response="$(curl -sS --max-time 20 -w '\n%{http_code}' \
+              -H "Authorization: Bearer $1" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/$2")" || response=$'\n000'
+            PROBE_CODE="$(printf '%s' "$response" | tail -n1)"
+            if printf '%s' "$response" | sed '$d' | grep -Eq '"push":[[:space:]]*true'; then
+              PROBE_PUSH="ja"
+            else
+              PROBE_PUSH="nein"
+            fi
+          }
+
+          identity() { # $1 = Token -> Anmeldename oder Fehlerhinweis
+            local response code login
+            response="$(curl -sS --max-time 20 -w '\n%{http_code}' \
+              -H "Authorization: Bearer $1" https://api.github.com/user)" || response=$'\n000'
+            code="$(printf '%s' "$response" | tail -n1)"
+            if [ "$code" = "200" ]; then
+              login="$(printf '%s' "$response" | sed '$d' | sed -n 's/.*"login":[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+              echo "${login:-unbekannt}"
+            else
+              echo "nicht abfragbar (HTTP ${code})"
+            fi
+          }
+
+          row() { # $1 Zugang, $2 Repository, $3 HTTP, $4 Schreibrecht
+            printf '| %s | %s | %s | %s |\n' "$1" "$2" "$3" "$4" >> "$summary"
+          }
+
+          failures=0
+          cross_repo_gaps=0
+
+          for repo in $TARGET_REPOS; do
+            full="niknight1403/${repo}"
+            probe "${BUILTIN_TOKEN:-}" "$full"
+            row "GITHUB_TOKEN" "$full" "$PROBE_CODE" "$PROBE_PUSH"
+            if [ "$repo" = "openhands-devbox" ] && { [ "$PROBE_CODE" != "200" ] || [ "$PROBE_PUSH" != "ja" ]; }; then
+              echo "::error::Der eingebaute GITHUB_TOKEN hat kein Schreibrecht auf ${full} (HTTP ${PROBE_CODE})."
+              failures=$((failures + 1))
+            fi
+            [ "$PROBE_PUSH" = "ja" ] || cross_repo_gaps=$((cross_repo_gaps + 1))
+          done
+
+          if [ -n "${PAT:-}" ]; then
+            echo "OPENHANDS_GH_PAT angemeldet als: $(identity "$PAT")"
+            pat_writable=0
+            pat_denied=0
+            for repo in $TARGET_REPOS; do
+              full="niknight1403/${repo}"
+              probe "$PAT" "$full"
+              row "OPENHANDS_GH_PAT" "$full" "$PROBE_CODE" "$PROBE_PUSH"
+              case "$PROBE_CODE" in
+                200)
+                  if [ "$PROBE_PUSH" = "ja" ]; then
+                    pat_writable=$((pat_writable + 1))
+                  else
+                    pat_denied=$((pat_denied + 1))
+                  fi
+                  ;;
+                *)
+                  pat_denied=$((pat_denied + 1))
+                  ;;
+              esac
+            done
+            if [ "$pat_writable" -eq 0 ]; then
+              echo "::error::OPENHANDS_GH_PAT hat auf keinem freigegebenen Repository Schreibrecht. Laeufe im eigenen Repository fallen auf den eingebauten GITHUB_TOKEN zurueck; fremde Zielprojekte schlagen fehl."
+              failures=$((failures + 1))
+            elif [ "$pat_denied" -gt 0 ]; then
+              echo "::warning::OPENHANDS_GH_PAT hat auf ${pat_denied} der freigegebenen Repositories kein Schreibrecht."
+            fi
+            {
+              echo ""
+              echo "Der PAT wird nur für fremde Zielprojekte gebraucht; im eigenen Repository greift der eingebaute Token."
+            } >> "$summary"
+          else
+            echo "::notice::Kein OPENHANDS_GH_PAT hinterlegt. Laeufe im eigenen Repository funktionieren mit dem eingebauten GITHUB_TOKEN; fremde Zielprojekte brauchen das Secret."
+            {
+              echo ""
+              echo "Kein OPENHANDS_GH_PAT hinterlegt: Das eigene Repository läuft mit dem eingebauten Token, fremde Zielprojekte brauchen weiterhin den PAT."
+            } >> "$summary"
+          fi
+
+          if [ "$cross_repo_gaps" -gt 0 ] && [ -z "${PAT:-}" ]; then
+            echo "::notice::Fuer Zielprojekte ausserhalb dieses Repositories ist das Secret OPENHANDS_GH_PAT noetig."
+          fi
+
+          {
+            echo ""
+            echo "Regel: eigener PAT zuerst, sonst der eingebaute GITHUB_TOKEN. Der Agentenlauf prüft die Reihenfolge vor jedem Modellaufruf und bricht bei fehlendem Schreibrecht sofort ab."
+          } >> "$summary"
+
+          cat "$summary" >> "$GITHUB_STEP_SUMMARY"
+          exit "$failures"
+
+      - name: Bericht als Artefakt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-token-check
+          path: ${{ runner.temp }}/github-token-check.md
+          if-no-files-found: ignore
+          retention-days: 14

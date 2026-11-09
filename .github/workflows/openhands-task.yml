@@ -45,8 +45,12 @@ on:
         default: ""
         type: string
 
+# Der eingebaute GITHUB_TOKEN bekommt genau die Rechte, die der Abschluss-
+# schritt braucht (Branch-Push und Draft-PR). Ein Lauf im eigenen Repository
+# funktioniert damit ohne jeden manuell angelegten Token.
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 concurrency:
   group: openhands-agenten-lauf
@@ -103,6 +107,46 @@ jobs:
           fi
           echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
           git checkout -b "$BRANCH"
+
+      - name: GitHub-Zugang für Push und Draft-PR bestimmen
+        id: github_auth
+        env:
+          PAT: ${{ secrets.OPENHANDS_GH_PAT }}
+          BUILTIN_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          can_push() {
+            # $1 = Token, $2 = Bezeichnung des Zugangs
+            local token="$1" label="$2" response code body
+            if [ -z "$token" ]; then
+              echo "::warning::${label} ist nicht hinterlegt."
+              return 1
+            fi
+            response="$(curl -sS --max-time 20 -w '\n%{http_code}' \
+              -H "Authorization: Bearer ${token}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${TARGET_REPO}")" || response=$'\n000'
+            code="$(printf '%s' "$response" | tail -n1)"
+            body="$(printf '%s' "$response" | sed '$d')"
+            if [ "$code" = "200" ] && printf '%s' "$body" | grep -Eq '"push":[[:space:]]*true'; then
+              echo "Schreibrecht auf ${TARGET_REPO} bestätigt (${label})."
+              return 0
+            fi
+            echo "::warning::${label} hat kein Schreibrecht auf ${TARGET_REPO} (HTTP ${code})."
+            return 1
+          }
+          SOURCE=""
+          if can_push "${PAT:-}" "OPENHANDS_GH_PAT"; then
+            SOURCE="OPENHANDS_GH_PAT"
+          elif can_push "${BUILTIN_TOKEN:-}" "GITHUB_TOKEN"; then
+            SOURCE="GITHUB_TOKEN"
+          else
+            echo "::error::Kein GitHub-Zugang mit Schreibrecht auf ${TARGET_REPO}; der Lauf stoppt, bevor Modellkontingent verbraucht wird."
+            echo "::error::Fuer Laeufe im eigenen Repository genuegt der eingebaute GITHUB_TOKEN. Fuer fremde Zielprojekte wird das Repository-Secret OPENHANDS_GH_PAT benoetigt (Fine-grained: Contents und Pull requests, je read and write)."
+            exit 1
+          fi
+          echo "GH_TOKEN_SOURCE=${SOURCE}" >> "$GITHUB_ENV"
+          echo "GitHub-Zugang: ${SOURCE}"
 
       - name: Guardrail-Sanitizer und Routen-Hunter testen
         run: python3 -m unittest discover -s control/tests -p 'test_*.py' -v
@@ -292,13 +336,21 @@ jobs:
         id: draft_pr
         if: success()
         env:
-          GH_TOKEN: ${{ secrets.OPENHANDS_GH_PAT }}
+          PAT: ${{ secrets.OPENHANDS_GH_PAT }}
+          BUILTIN_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          # Reihenfolge wie in der Vorpruefung: eigener PAT zuerst, sonst der
+          # eingebaute GITHUB_TOKEN. Der Wert bleibt in diesem Schritt.
+          GH_TOKEN="${PAT:-}"
+          if [ -z "$GH_TOKEN" ]; then
+            GH_TOKEN="${BUILTIN_TOKEN:-}"
+          fi
+          export GH_TOKEN
           cd workspace
           cleanup() {
             rm -f "$RUNNER_TEMP/openhands-askpass"
-            unset GH_TOKEN || true
+            unset GH_TOKEN PAT BUILTIN_TOKEN || true
           }
           trap cleanup EXIT
           if [ -z "$(git status --porcelain)" ]; then
@@ -343,5 +395,6 @@ jobs:
             echo "- Zielprojekt: \`$TARGET_REPO\`"
             echo "- Branch: \`${BRANCH:-nicht angelegt}\`"
             echo "- Modellroute: \`${LLM_MODEL:-keine}\`${LLM_ROUTE_NAME:+ (${LLM_ROUTE_NAME})}"
+            echo "- GitHub-Zugang: \`${GH_TOKEN_SOURCE:-nicht geprueft}\`"
             echo "- Draft-PR: ${{ steps.draft_pr.outputs.PR_URL || 'keiner erstellt' }}"
           } >> "$GITHUB_STEP_SUMMARY"

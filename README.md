@@ -59,12 +59,26 @@ Die Einstellungen sind backend-spezifisch. In Agent Canvas:
 
 Siehe [Agentenprofile](docs/AGENT-PROFILES.md) und [Integrationen und Connectoren](docs/INTEGRATIONS.md) für die mitgelieferten Profile und sichere Einrichtung.
 
-## Einmalige GitHub-Einrichtung
+## GitHub-Zugang: autonom, ohne Bastelei
+
+Der Agentenlauf prüft seinen GitHub-Zugang vor jedem Modellaufruf und wählt ihn selbst:
+
+1. **`OPENHANDS_GH_PAT`** aus den Repository-Secrets, falls hinterlegt und mit Schreibrecht auf das Zielprojekt.
+2. Sonst der **eingebaute `GITHUB_TOKEN`** des Workflows. Der Workflow fordert dafür `contents: write` und `pull-requests: write` an.
+
+Für Läufe im eigenen Repository (`target: openhands-devbox`) ist damit **kein Secret und kein manuell angelegter Token nötig**: Branch-Push und Draft-PR laufen sofort. Fehlt das Schreibrecht komplett, stoppt der Lauf nach Sekunden mit klarer Meldung, statt nach neunzig Minuten Agentenzeit am Push zu scheitern. Der Token erreicht den Agentenprozess nie; er wird erst im Abschluss-Schritt geladen und dort wieder verworfen, und er wird nie über `GITHUB_ENV` oder Logs verteilt.
+
+Nur für **fremde Zielprojekte** (`Agenten-Villa`, `LaunchpadControl`, …) braucht es weiterhin ein Repository-Secret `OPENHANDS_GH_PAT` — ein Fine-grained Token mit `Contents: read and write` und `Pull requests: read and write` auf genau diesen Repositories. Ein abgelaufener PAT bricht den Lauf nicht mehr ab: Die Vorprüfung fällt auf den eingebauten Token zurück, wo das möglich ist, und meldet den Rest als Warnung.
+
+Der Workflow **GitHub Token Check** prüft jeden Montag um 04:30 UTC und auf Knopfdruck, welcher Zugang auf welchem freigegebenen Repository wirklich schreiben darf, und schreibt das Ergebnis als Tabelle in die Lauf-Zusammenfassung. Er zeigt keine Token-Werte, nur HTTP-Code und Schreibrecht.
+
+Ein Unterschied bleibt: PRs, die mit dem eingebauten `GITHUB_TOKEN` erstellt werden, lösen keine weiteren GitHub-Workflows aus (GitHub-Regel). Wer Folgeläufe auf dem PR braucht, nutzt den PAT.
+
+## Einmalige Einrichtung der Modell-Keys
 
 Lege die folgenden Secrets in **Settings → Secrets and variables → Actions** dieses Repositorys an:
 
 - `OPENROUTER_API_KEY` — Hauptroute; der Hunter liest daraus live alle kostenlosen Modelle.
-- `OPENHANDS_GH_PAT` — GitHub-Token mit Zugriff auf das Zielrepository `Agenten-Villa`; für Branch-Push und Draft-PR.
 
 Jedes weitere Secret erweitert die Kaskade automatisch, ohne Codeänderung. Reihenfolge und Grenzen stehen in [Free Route Hunter](docs/FREE-ROUTE-HUNTER.md):
 
