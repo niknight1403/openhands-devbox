@@ -184,6 +184,9 @@ jobs:
         with:
           repository: ${{ env.TARGET_REPO }}
           ref: main
+          # Fremde private Ziel-Repositories benötigen den fein begrenzten PAT.
+          # Im eigenen Repository genügt der eingebaute Workflow-Token.
+          token: ${{ secrets.OPENHANDS_GH_PAT || secrets.GITHUB_TOKEN }}
           path: workspace
           persist-credentials: false
 
