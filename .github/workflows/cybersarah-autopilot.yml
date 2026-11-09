@@ -29,7 +29,5 @@ jobs:
     uses: ./.github/workflows/openhands-task.yml
     secrets: inherit
     with:
+      # Nur das Projekt: Zielrepository und Auftrag kommen aus projects/.
       project: cybersarah-control-center
-      task: ${{ inputs.task || '' }}
-      profile: superagent
-      target: CyberSarah-Control-Center
