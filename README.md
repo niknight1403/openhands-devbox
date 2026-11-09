@@ -94,6 +94,29 @@ Der Workflow **Free Route Check** prüft die Kaskade zusätzlich täglich um 05:
 
 Lege Modell-Keys, die der Codespace benötigt, zusätzlich als Codespaces-Secrets an oder trage sie direkt in den Canvas-Einstellungen ein. Der Canvas-API-Key wird lokal generiert und benötigt kein GitHub-Secret. Der Modellanbieter-Key wird im Actions-Lauf dem OpenHands-Prozess für LLM-Aufrufe bereitgestellt; verwende dafür Keys mit möglichst engem Kontingent und ohne zusätzliche Anbieterrechte. Rohe Agentenlogs und Fehlerdetails werden nicht in Actions-Logs gestreamt, und der Aufgabenprompt wird nicht in Commit- oder PR-Metadaten kopiert. Zugangsdaten gehören trotzdem nie in Dateien, Prompts, Action-Eingaben oder Logs. Der Actions-PAT wird beim Checkout nicht an OpenHands übergeben und erst für den abschließenden Push-/PR-Schritt bereitgestellt.
 
+## Projekte mit eigenem Auftrag
+
+Ein Repo allein sagt dem Agenten nicht, was dort zählt. Deshalb gibt es
+`projects/<slug>/` mit drei Dateien: `project.env` (Zielrepository, Profil,
+Kadenz), `PROJECT.md` (Steckbrief mit Kommandos und heiklen Pfaden) und
+`PROMPT.md` (der wiederkehrende Auftrag).
+
+Im Workflow `OpenHands Task` gibt es dafür den Eingabewert `project`. Ist er
+gesetzt, prüft der Schritt `Projekt laden` das Zielrepository gegen
+`config/targets.txt`, setzt `TARGET_REPO` und hängt Prompt und Steckbrief an den
+Auftrag. Ohne `project` bleibt alles wie vorher.
+
+Angelegt sind aktuell:
+
+| Projekt | Zielrepository | Auftrag |
+| --- | --- | --- |
+| `cybersarah-control-center` | `CyberSarah-Control-Center` | analysieren, optimieren, perfektionieren |
+
+Der passende Aufrufer ist `CyberSarah Autopilot` (täglich 03:15 UTC, zusätzlich
+manuell startbar). Er ruft `openhands-task.yml` per `workflow_call` auf, damit
+es nur eine Stelle gibt, an der die Laufumgebung gepflegt wird. Details und die
+Anleitung für ein neues Projekt stehen in [projects/README.md](projects/README.md).
+
 ## Erweiterungen: Skills, MCP und Pakete
 
 Das mitgelieferte Pack ist ein **AgentSkills-kompatibles Repository-Paket** und braucht keinen Marktplatz. MCP-Server werden absichtlich nicht automatisch mit fremden Tokens oder weitreichenden Rechten installiert: verbinde nur Anbieter, denen du vertraust, und vergib minimal nötige Berechtigungen. OpenHands unterstützt je nach Server Streamable HTTP, SSE und stdio; Streamable HTTP ist für Remote-Server die empfohlene Transportart. Erste OAuth-Anmeldungen benötigen eine interaktive Bestätigung.

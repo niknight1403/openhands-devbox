@@ -1,0 +1,35 @@
+# CyberSarah Control Center: ein Lauf pro Tag, der das Projekt analysiert und
+# danach schrittweise optimiert. Der Auftrag selbst steht in
+# projects/cybersarah-control-center/PROMPT.md, damit er ohne Workflow-Änderung
+# gepflegt werden kann.
+name: CyberSarah Autopilot
+
+on:
+  schedule:
+    # Täglicher Lauf, gleiche Kadenz wie in projects/cybersarah-control-center/project.env.
+    - cron: "15 3 * * *"
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Zusatzauftrag für diesen Lauf (leer = Projektauftrag)"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: openhands-agenten-lauf
+  cancel-in-progress: false
+
+jobs:
+  cybersarah:
+    uses: ./.github/workflows/openhands-task.yml
+    secrets: inherit
+    with:
+      project: cybersarah-control-center
+      task: ${{ inputs.task || '' }}
+      profile: superagent
+      target: CyberSarah-Control-Center

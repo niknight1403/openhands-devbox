@@ -1,0 +1,9 @@
+# Freigegebene Zielrepositories. Nur diese dürfen Agentenläufe auschecken und
+# beschreiben. Schreibweise wie bei GitHub, weil genau dieser Wert im
+# Checkout-Schritt landet. Ein Projekt in projects/ muss hier eingetragen sein.
+Agenten-Villa
+openhands-devbox
+LaunchpadControl
+CyberSarah-Control-Center
+Agentforge2
+AGI-Agenten

@@ -44,6 +44,42 @@ on:
         required: false
         default: ""
         type: string
+      project:
+        description: "Projekt aus projects/ (setzt Zielrepository und Projekt-Prompt)"
+        required: false
+        default: ""
+        type: string
+  # Ein Projekt-Autopilot startet diesen Lauf per workflow_call. Dort gibt es
+  # keine Auswahllisten, deshalb sind alle Werte freie Strings und werden im
+  # Schritt "Projekt laden" gegen config/targets.txt geprüft.
+  workflow_call:
+    inputs:
+      task:
+        description: "Zusatzauftrag (leer = Projekt-Prompt oder Autonom-Wache)"
+        required: false
+        default: ""
+        type: string
+      profile:
+        description: "Arbeitsmodus (leer = Standardprofil des Projekts)"
+        required: false
+        default: ""
+        type: string
+      model:
+        required: false
+        default: ""
+        type: string
+      target:
+        required: false
+        default: ""
+        type: string
+      project:
+        required: false
+        default: ""
+        type: string
+      client_run:
+        required: false
+        default: ""
+        type: string
 
 # Der eingebaute GITHUB_TOKEN bekommt genau die Rechte, die der Abschluss-
 # schritt braucht (Branch-Push und Draft-PR). Ein Lauf im eigenen Repository
@@ -60,14 +96,65 @@ jobs:
   openhands:
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    env:
-      TARGET_REPO: niknight1403/${{ inputs.target || 'Agenten-Villa' }}
     steps:
       - name: Devbox-Prompts und Skills auschecken
         uses: actions/checkout@v4
         with:
           path: control
           persist-credentials: false
+
+      # Ein Projekt bringt Zielrepository und Auftrag mit. Die Prüfung gegen
+      # config/targets.txt passiert hier, also bevor irgendein Kontingent
+      # verbraucht wird und bevor ein fremdes Repository ausgecheckt wird.
+      - name: Projekt laden
+        env:
+          PROJECT_INPUT: ${{ inputs.project }}
+          TARGET_INPUT: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+          freigegeben="$(grep -vE '^[[:space:]]*(#|$)' control/config/targets.txt)"
+          projekt_prompt=""
+          projekt_kontext=""
+          if [ -n "$PROJECT_INPUT" ]; then
+            if ! printf '%s' "$PROJECT_INPUT" | grep -Eq '^[a-z0-9][a-z0-9-]{1,40}$'; then
+              echo "::error::project darf nur Kleinbuchstaben, Ziffern und - enthalten."
+              exit 2
+            fi
+            ordner="control/projects/$PROJECT_INPUT"
+            if [ ! -f "$ordner/project.env" ]; then
+              echo "::error::Projekt '$PROJECT_INPUT' ist nicht angelegt ($ordner/project.env fehlt)."
+              exit 2
+            fi
+            # shellcheck disable=SC1090
+            . "$ordner/project.env"
+            ziel="${TARGET_REPO_SLUG:-}"
+            standard_profil="${DEFAULT_PROFILE:-superagent}"
+            projekt_prompt="$ordner/PROMPT.md"
+            projekt_kontext="$ordner/PROJECT.md"
+            # Ein Projekt bestimmt sein Zielrepository selbst. Die Auswahlliste
+            # im manuellen Start hat einen festen Standardwert, der hier nur
+            # dann stören würde; deshalb gewinnt das Projekt und der
+            # abweichende Wunsch wird sichtbar gemeldet.
+            if [ -n "${TARGET_INPUT:-}" ] && [ "$TARGET_INPUT" != "$ziel" ]; then
+              echo "::warning::Projekt '$PROJECT_INPUT' gehört zu $ziel; der angeforderte Wert '$TARGET_INPUT' wird ignoriert."
+            fi
+          else
+            ziel="${TARGET_INPUT:-Agenten-Villa}"
+            standard_profil="superagent"
+          fi
+          if ! printf '%s\n' "$freigegeben" | grep -Fxq "$ziel"; then
+            echo "::error::Zielrepository '$ziel' steht nicht in config/targets.txt."
+            exit 2
+          fi
+          {
+            echo "TARGET_REPO=niknight1403/$ziel"
+            echo "TARGET_SLUG=$ziel"
+            echo "DEFAULT_PROFILE=$standard_profil"
+            echo "PROJECT_NAME=$PROJECT_INPUT"
+            echo "PROJECT_PROMPT_FILE=$projekt_prompt"
+            echo "PROJECT_CONTEXT_FILE=$projekt_kontext"
+          } >> "$GITHUB_ENV"
+          echo "Projekt: ${PROJECT_INPUT:-keins} | Ziel: niknight1403/$ziel | Profil: $standard_profil"
 
       - name: Letzten Autopilot-Status laden
         continue-on-error: true
@@ -82,7 +169,7 @@ jobs:
         id: target_checkout
         uses: actions/checkout@v4
         with:
-          repository: niknight1403/${{ inputs.target || 'Agenten-Villa' }}
+          repository: ${{ env.TARGET_REPO }}
           ref: main
           path: workspace
           persist-credentials: false
@@ -193,10 +280,30 @@ jobs:
           PROFILE_INPUT: ${{ inputs.profile }}
         run: |
           TASK="$TASK_INPUT"
+          PROJEKT_PROMPT=""
+          PROJEKT_KONTEXT=""
+          if [ -n "${PROJECT_PROMPT_FILE:-}" ] && [ -f "${PROJECT_PROMPT_FILE}" ]; then
+            PROJEKT_PROMPT="$(cat "${PROJECT_PROMPT_FILE}")"
+          fi
+          if [ -n "${PROJECT_CONTEXT_FILE:-}" ] && [ -f "${PROJECT_CONTEXT_FILE}" ]; then
+            PROJEKT_KONTEXT="$(cat "${PROJECT_CONTEXT_FILE}")"
+          fi
+          if [ -n "$PROJEKT_PROMPT" ]; then
+            if [ -n "$TASK" ]; then
+              # Ein eigener Auftrag gilt zusätzlich, ersetzt den Projektauftrag nicht.
+              TASK="$TASK"$'\n\n'"--- Projektauftrag ---"$'\n'"$PROJEKT_PROMPT"
+            else
+              TASK="$PROJEKT_PROMPT"
+            fi
+          fi
+          if [ -n "$PROJEKT_KONTEXT" ]; then
+            TASK="$TASK"$'\n\n'"--- Projektkontext ---"$'\n'"$PROJEKT_KONTEXT"
+          fi
           if [ -z "$TASK" ]; then
             TASK="Autonom-Wache-Sprint: Halte ${TARGET_REPO} funktionsfähig. Prüfe die vorhandenen Build-, Lint- und Test-Kommandos. Wähle anschließend höchstens 1-3 klar begrenzte Verbesserungen aus echten Projektbedürfnissen, etwa Fehlerkorrektur, Sicherheit, Bedienbarkeit oder sinnvolle Werkzeuge. Ändere keine Workflow- oder Secret-Dateien und pushe nie direkt auf main."
           fi
-          PROFILE="${PROFILE_INPUT:-superagent}"
+          echo "Auftrag: ${#TASK} Zeichen."
+          PROFILE="${PROFILE_INPUT:-${DEFAULT_PROFILE:-superagent}}"
           case "$PROFILE" in
             superagent|implementer|frontend|security|quality) ;;
             *) echo "::error::Unbekanntes Profil"; exit 2 ;;
