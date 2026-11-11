@@ -18,6 +18,7 @@ alles andere ist bewusst knapp gehalten, damit es gelesen wird.
 - 2026-11-09 | Lauf 42556654773 (success) | Route openrouter/stealth/crouton-alpha | Branch agent/app-1794194952883 | PR keiner | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/42556654773]
 - 2026-11-09 | Lauf 42608553653 (success) | Route openrouter/stealth/crouton-alpha | Branch agent/openhands-20261109-112244 | PR https://github.com/niknight1403/CyberSarah-Control-Center/pull/287 | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/42608553653]
 - 2026-11-10 | Lauf 42804151379 (failure) | Route openrouter/xingchen-agi/xing4.0-29b-a4b:free | Branch agent/openhands-20261110-110236 | PR keiner | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/42804151379]
+- 2026-11-11 | Lauf 43006517002 (failure) | Route openai/gpt-oss-120b | Branch agent/openhands-20261111-104720 | PR keiner | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/43006517002]
 
 ## Entscheidungen
 
@@ -41,3 +42,4 @@ alles andere ist bewusst knapp gehalten, damit es gelesen wird.
 - 2026-11-09 | Lauf 42554062108 endete mit 'failure'; Ursache im Laufprotokoll prüfen, bevor derselbe Weg erneut versucht wird. [https://github.com/niknight1403/openhands-devbox/actions/runs/42554062108]
 - 2026-11-09 | Lauf 42554381341 endete mit 'failure'; Ursache im Laufprotokoll prüfen, bevor derselbe Weg erneut versucht wird. [https://github.com/niknight1403/openhands-devbox/actions/runs/42554381341]
 - 2026-11-10 | Lauf 42804151379 endete mit 'failure'; Ursache im Laufprotokoll prüfen, bevor derselbe Weg erneut versucht wird. [https://github.com/niknight1403/openhands-devbox/actions/runs/42804151379]
+- 2026-11-11 | Lauf 43006517002 endete mit 'failure'; Ursache im Laufprotokoll prüfen, bevor derselbe Weg erneut versucht wird. [https://github.com/niknight1403/openhands-devbox/actions/runs/43006517002]
