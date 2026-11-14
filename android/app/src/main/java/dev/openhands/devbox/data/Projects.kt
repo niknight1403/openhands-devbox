@@ -9,18 +9,29 @@ package dev.openhands.devbox.data
  */
 data class ProjectChoice(
     val slug: String,
+    val targetOwner: String,
     val targetShort: String,
     val label: String,
-)
+) {
+    val targetRepoFullName: String get() = "$targetOwner/$targetShort"
+}
 
 object Projects {
     val alle: List<ProjectChoice> = listOf(
         ProjectChoice(
             slug = "cybersarah-control-center",
+            targetOwner = "niknight1403",
             targetShort = "CyberSarah-Control-Center",
             label = "CyberSarah Control Center",
         ),
     )
 
     fun findBySlug(slug: String): ProjectChoice? = alle.firstOrNull { it.slug == slug }
+
+    /**
+     * A selected project's repository owner is explicit project configuration.
+     * The control-repository owner is not necessarily the target-repository owner.
+     */
+    fun targetRepoFor(project: ProjectChoice?, fallbackTargetRepo: String): String =
+        project?.targetRepoFullName ?: fallbackTargetRepo
 }
