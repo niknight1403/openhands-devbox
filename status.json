@@ -1,0 +1,283 @@
+{
+  "generated_at": "2026-11-14T13:19:10+00:00",
+  "mode": "cloud",
+  "packs": [
+    {
+      "name": "anthropic-skills",
+      "repo": "anthropics/skills",
+      "mode": "validate",
+      "ok": true,
+      "skills": [
+        {
+          "name": "docx",
+          "ok": true,
+          "reason": "ok"
+        },
+        {
+          "name": "frontend-design",
+          "ok": true,
+          "reason": "ok"
+        }
+      ],
+      "reason": "geprüft, nicht kopiert (mode=validate)",
+      "installed": 0
+    }
+  ],
+  "routes": [
+    {
+      "provider": "groq",
+      "base_url": "https://api.groq.com/openai/v1",
+      "model": "openai/gpt-oss-120b",
+      "litellm_model": "openai/openai/gpt-oss-120b",
+      "origin": "builtin",
+      "chat_ok": true,
+      "tools_ok": false,
+      "status": 200,
+      "latency_ms": 186
+    },
+    {
+      "provider": "cerebras",
+      "base_url": "https://api.cerebras.ai/v1",
+      "model": "gpt-oss-120b",
+      "litellm_model": "openai/gpt-oss-120b",
+      "origin": "builtin",
+      "chat_ok": true,
+      "tools_ok": false,
+      "status": 200,
+      "latency_ms": 400
+    },
+    {
+      "provider": "pollinations",
+      "base_url": "https://text.pollinations.ai/openai",
+      "model": "openai",
+      "litellm_model": "openai/openai",
+      "origin": "builtin",
+      "chat_ok": true,
+      "tools_ok": false,
+      "status": 200,
+      "latency_ms": 437
+    },
+    {
+      "provider": "groq",
+      "base_url": "https://api.groq.com/openai/v1",
+      "model": "llama-3.3-70b-versatile",
+      "litellm_model": "openai/llama-3.3-70b-versatile",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 404,
+      "latency_ms": 39
+    },
+    {
+      "provider": "groq",
+      "base_url": "https://api.groq.com/openai/v1",
+      "model": "qwen/qwen3-32b",
+      "litellm_model": "openai/qwen/qwen3-32b",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 404,
+      "latency_ms": 42
+    },
+    {
+      "provider": "groq",
+      "base_url": "https://api.groq.com/openai/v1",
+      "model": "moonshotai/kimi-k2-instruct",
+      "litellm_model": "openai/moonshotai/kimi-k2-instruct",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 404,
+      "latency_ms": 89
+    },
+    {
+      "provider": "cerebras",
+      "base_url": "https://api.cerebras.ai/v1",
+      "model": "qwen-3-235b-a22b-instruct-2507",
+      "litellm_model": "openai/qwen-3-235b-a22b-instruct-2507",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 404,
+      "latency_ms": 100
+    },
+    {
+      "provider": "openrouter",
+      "base_url": "https://openrouter.ai/api/v1",
+      "model": "baidu/ernie-5.5-flash-preview:free",
+      "litellm_model": "openrouter/baidu/ernie-5.5-flash-preview:free",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 429,
+      "latency_ms": 104
+    },
+    {
+      "provider": "openrouter",
+      "base_url": "https://openrouter.ai/api/v1",
+      "model": "thinkingmachines/inkling-2-small:free",
+      "litellm_model": "openrouter/thinkingmachines/inkling-2-small:free",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 403,
+      "latency_ms": 107
+    },
+    {
+      "provider": "openrouter",
+      "base_url": "https://openrouter.ai/api/v1",
+      "model": "particle-ai/particle-1:free",
+      "litellm_model": "openrouter/particle-ai/particle-1:free",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 429,
+      "latency_ms": 116
+    },
+    {
+      "provider": "openrouter",
+      "base_url": "https://openrouter.ai/api/v1",
+      "model": "liquid/lfm-3-1.7b:free",
+      "litellm_model": "openrouter/liquid/lfm-3-1.7b:free",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 429,
+      "latency_ms": 126
+    },
+    {
+      "provider": "huggingface",
+      "base_url": "https://router.huggingface.co/v1",
+      "model": "Qwen/Qwen3-235B-A22B-Instruct-2507:fireworks-ai",
+      "litellm_model": "openai/Qwen/Qwen3-235B-A22B-Instruct-2507:fireworks-ai",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 410,
+      "latency_ms": 157
+    },
+    {
+      "provider": "gemini",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "model": "gemini-2.0-flash-lite",
+      "litellm_model": "openai/gemini-2.0-flash-lite",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 404,
+      "latency_ms": 162
+    },
+    {
+      "provider": "huggingface",
+      "base_url": "https://router.huggingface.co/v1",
+      "model": "openai/gpt-oss-120b:cerebras",
+      "litellm_model": "openai/openai/gpt-oss-120b:cerebras",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 402,
+      "latency_ms": 163
+    },
+    {
+      "provider": "gemini",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "model": "gemini-2.5-flash-lite",
+      "litellm_model": "openai/gemini-2.5-flash-lite",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 404,
+      "latency_ms": 176
+    },
+    {
+      "provider": "huggingface",
+      "base_url": "https://router.huggingface.co/v1",
+      "model": "Qwen/Qwen3-Coder-480B-A35B-Instruct:cerebras",
+      "litellm_model": "openai/Qwen/Qwen3-Coder-480B-A35B-Instruct:cerebras",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 410,
+      "latency_ms": 180
+    },
+    {
+      "provider": "openrouter",
+      "base_url": "https://openrouter.ai/api/v1",
+      "model": "inclusionai/ling-3.2-flash:free",
+      "litellm_model": "openrouter/inclusionai/ling-3.2-flash:free",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 429,
+      "latency_ms": 184
+    },
+    {
+      "provider": "gemini",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "model": "gemini-2.0-flash",
+      "litellm_model": "openai/gemini-2.0-flash",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 404,
+      "latency_ms": 193
+    },
+    {
+      "provider": "cerebras",
+      "base_url": "https://api.cerebras.ai/v1",
+      "model": "qwen-3-coder-480b",
+      "litellm_model": "openai/qwen-3-coder-480b",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 404,
+      "latency_ms": 213
+    },
+    {
+      "provider": "gemini",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "model": "gemini-2.5-flash",
+      "litellm_model": "openai/gemini-2.5-flash",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 404,
+      "latency_ms": 213
+    },
+    {
+      "provider": "openai",
+      "base_url": "https://api.openai.com/v1",
+      "model": "gpt-4o-mini",
+      "litellm_model": "openai/gpt-4o-mini",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 429,
+      "latency_ms": 860
+    },
+    {
+      "provider": "openai",
+      "base_url": "https://api.openai.com/v1",
+      "model": "gpt-4.1-mini",
+      "litellm_model": "openai/gpt-4.1-mini",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 429,
+      "latency_ms": 950
+    }
+  ],
+  "best": {
+    "provider": "groq",
+    "base_url": "https://api.groq.com/openai/v1",
+    "model": "openai/gpt-oss-120b",
+    "litellm_model": "openai/openai/gpt-oss-120b",
+    "origin": "builtin",
+    "chat_ok": true,
+    "tools_ok": false,
+    "status": 200,
+    "latency_ms": 186
+  },
+  "warnings": [],
+  "duration_s": 2.0
+}
