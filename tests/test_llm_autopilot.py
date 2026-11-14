@@ -449,7 +449,7 @@ class MainTests(unittest.TestCase):
              mock.patch.object(autopilot, "load_katalog", return_value=[]), \
              mock.patch.object(autopilot, "load_remote_kataloge", return_value=[]):
             code, status, summary = self.run_main(
-                [],
+                ["--summary"],
                 {"AUTOPILOT_TOOL_PROBE": "1"},
                 post=lambda url, payload, api_key, timeout: (200, CHAT_OK, 42),
                 fetch_json_fn=lambda url, timeout=5, token="": {"packs": []},
