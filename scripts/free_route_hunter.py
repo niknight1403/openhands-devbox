@@ -397,19 +397,57 @@ def discover_openrouter(timeout: float = DEFAULT_TIMEOUT, env: dict[str, str] | 
     return parse_openrouter_free_models(payload, min_context)
 
 
+TOOLS_PROBE = [
+    {
+        "type": "function",
+        "function": {
+            "name": "route_probe",
+            "description": "Prüft, ob die Modellroute einen Werkzeugaufruf ausführen kann.",
+            "parameters": {
+                "type": "object",
+                "properties": {"stadt": {"type": "string", "description": "Stadtname"}},
+                "required": ["stadt"],
+            },
+        },
+    }
+]
+
+
 @dataclass
 class RouteCheck:
-    """Ergebnis eines echten Mini-Aufrufs."""
+    """Ergebnis eines Chat- und Werkzeugaufrufs."""
 
     ok: bool
     status: int | str
     latency_ms: int
+    chat_ok: bool | None = None
+    tools_ok: bool | None = None
+
+
+def has_tool_call(payload: object) -> bool:
+    """Erkennt einen tatsächlichen Function-/Tool-Call in einer OpenAI-kompatiblen Antwort."""
+    if not isinstance(payload, dict):
+        return False
+    choices = payload.get("choices")
+    if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+        return False
+    first = choices[0]
+    if first.get("finish_reason") in {"tool_calls", "function_call"}:
+        return True
+    message = first.get("message")
+    return isinstance(message, dict) and bool(message.get("tool_calls") or message.get("function_call"))
 
 
 def ping_route(provider: Provider, model: str, api_key: str, timeout: float = DEFAULT_TIMEOUT) -> RouteCheck:
-    """Echter Mini-Aufruf: nur HTTP 2xx gilt als erreichbare Route."""
+    """Eine Route gilt nur dann als bereit, wenn sie einen echten Werkzeugaufruf zurückgibt."""
     payload = json.dumps(
-        {"model": model, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1}
+        {
+            "model": model,
+            "messages": [{"role": "user", "content": "Nutze das Werkzeug route_probe für Berlin."}],
+            "tools": TOOLS_PROBE,
+            "tool_choice": "auto",
+            "max_tokens": 64,
+        }
     ).encode("utf-8")
     headers = {"Content-Type": "application/json", "User-Agent": USER_AGENT}
     if api_key:
@@ -423,15 +461,21 @@ def ping_route(provider: Provider, model: str, api_key: str, timeout: float = DE
     started = time.perf_counter()
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:  # nosec B310 - Endpunkt stammt aus dem geprueften Routenkatalog (nur https)
-            response.read(256)
+            raw = response.read()
             latency = int((time.perf_counter() - started) * 1000)
-            return RouteCheck(200 <= response.status < 300, response.status, latency)
+            chat_ok = 200 <= response.status < 300
+            try:
+                answer = json.loads(raw.decode("utf-8")) if raw else None
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                answer = None
+            tools_ok = chat_ok and has_tool_call(answer)
+            return RouteCheck(chat_ok and tools_ok, response.status, latency, chat_ok, tools_ok)
     except urllib.error.HTTPError as error:
         latency = int((time.perf_counter() - started) * 1000)
-        return RouteCheck(False, error.code, latency)
+        return RouteCheck(False, error.code, latency, False, False)
     except (urllib.error.URLError, TimeoutError, OSError, ValueError):
         latency = int((time.perf_counter() - started) * 1000)
-        return RouteCheck(False, "error", latency)
+        return RouteCheck(False, "error", latency, False, False)
 
 
 def build_candidates(
@@ -514,6 +558,8 @@ def hunt(
                     "ok": result.ok,
                     "status": result.status,
                     "latency_ms": result.latency_ms,
+                    "chat_ok": result.chat_ok,
+                    "tools_ok": result.tools_ok,
                 }
             )
             state = "OK  " if result.ok else "--  "
@@ -624,13 +670,28 @@ def run_local(environment: dict[str, str], args: argparse.Namespace, timeout: fl
         return 0
 
     check = ping(provider, model, route.api_key, timeout)
-    checks = [{"provider": provider.name, "model": model, "ok": check.ok, "status": check.status, "latency_ms": check.latency_ms}]
+    checks = [{
+        "provider": provider.name,
+        "model": model,
+        "ok": check.ok,
+        "status": check.status,
+        "latency_ms": check.latency_ms,
+        "chat_ok": check.chat_ok,
+        "tools_ok": check.tools_ok,
+    }]
     report = {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "mode": "local",
         "base_url": route.base_url,
         "chosen": (
-            {"provider": provider.name, "model": model, "litellm_model": route.model_string, "latency_ms": check.latency_ms}
+            {
+                "provider": provider.name,
+                "model": model,
+                "litellm_model": route.model_string,
+                "latency_ms": check.latency_ms,
+                "chat_ok": check.chat_ok,
+                "tools_ok": check.tools_ok,
+            }
             if check.ok
             else None
         ),
@@ -652,6 +713,9 @@ def run_local(environment: dict[str, str], args: argparse.Namespace, timeout: fl
         print(json.dumps(report, ensure_ascii=False, indent=2))
 
     if not check.ok:
+        if check.chat_ok and not check.tools_ok:
+            print(f"::error::Lokale Route {route.base_url} antwortet, bestätigt aber keinen Werkzeugaufruf.")
+            return 6
         print(f"::error::Lokale Route {route.base_url} antwortet nicht (HTTP {check.status}).")
         print(
             "::error::Kein Cloud-Fallback im Offline-Modus. Router starten (ollama serve), "
@@ -666,7 +730,7 @@ def run_local(environment: dict[str, str], args: argparse.Namespace, timeout: fl
         # nosec B604 - write_env ist eine eigene Funktion, kein Shell-Aufruf
         shell=args.shell_export,
     )
-    print(f"::notice::Lokale Offline-Route bereit: {route.label} (HTTP {check.status}, {check.latency_ms} ms)")
+    print(f"::notice::Lokale Offline-Tool-Route bereit: {route.label} (Werkzeugaufruf bestätigt, HTTP {check.status}, {check.latency_ms} ms)")
     return 0
 
 
@@ -686,6 +750,8 @@ def build_report(
                 "model": chosen.model,
                 "litellm_model": chosen.display,
                 "latency_ms": check.latency_ms if check else None,
+                "chat_ok": check.chat_ok if check else None,
+                "tools_ok": check.tools_ok if check else None,
             }
             if chosen
             else None
@@ -709,6 +775,9 @@ def summary_markdown(report: dict) -> str:
         lines.append(f"- Modus: offline, nur lokale Route `{report.get('base_url', '')}`")
     if chosen:
         lines.append(f"- Route: `{chosen['provider']}` / `{chosen['model']}` ({chosen['latency_ms']} ms)")
+        lines.append(f"- Werkzeugaufruf: {'bestätigt' if chosen.get('tools_ok') else 'nicht bestätigt'}")
+    elif any(route.get("chat_ok") for route in checked):
+        lines.append("- Route: Chat antwortet, aber kein Werkzeugaufruf wurde bestätigt")
     else:
         lines.append("- Route: keine erreichbare Gratis-Route")
     lines.append(f"- Geprüfte Kandidaten: {len(checked)}")
@@ -807,6 +876,12 @@ def main(argv: list[str] | None = None, env: dict[str, str] | None = None, disco
         print(json.dumps(report, ensure_ascii=False, indent=2))
 
     if not chosen or not check:
+        if any(entry.get("chat_ok") for entry in checks):
+            print("::error::Chat-Routen antworten, aber keine Route hat einen Werkzeugaufruf bestätigt.")
+            for entry in checks:
+                if entry.get("chat_ok"):
+                    print(f"::error::  {entry['provider']}:{entry['model']} → HTTP {entry['status']}, Werkzeugaufruf nicht bestätigt")
+            return 6
         print("::error::Keine Modellroute antwortete. Geprüft wurden:")
         for entry in checks:
             print(f"::error::  {entry['provider']}:{entry['model']} → HTTP {entry['status']}")
@@ -823,7 +898,7 @@ def main(argv: list[str] | None = None, env: dict[str, str] | None = None, disco
         # nosec B604 - write_env ist eine eigene Funktion, kein Shell-Aufruf
         shell=args.shell_export,
     )
-    print(f"::notice::Gratis-Route bereit: {chosen.label} (HTTP {check.status}, {check.latency_ms} ms)")
+    print(f"::notice::Gratis-Tool-Route bereit: {chosen.label} (Werkzeugaufruf bestätigt, HTTP {check.status}, {check.latency_ms} ms)")
     return 0
 
 
