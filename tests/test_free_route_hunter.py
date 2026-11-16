@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
+from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
@@ -68,6 +69,57 @@ def fake_ping(ok: dict[str, bool], seen: list[str] | None = None):
 
     return ping
 
+
+
+
+class PingRouteTests(unittest.TestCase):
+    class Response:
+        status = 200
+
+        def __init__(self, payload):
+            self.payload = payload
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return json.dumps(self.payload).encode("utf-8")
+
+    def test_ping_route_requires_a_real_tool_call(self):
+        payload = {
+            "choices": [{
+                "finish_reason": "tool_calls",
+                "message": {"tool_calls": [{
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {"name": "route_probe", "arguments": "{\\"stadt\\":\\"Berlin\\"}"},
+                }]},
+            }]
+        }
+        response = self.Response(payload)
+        with mock.patch.object(hunter.urllib.request, "urlopen", return_value=response) as urlopen:
+            result = hunter.ping_route(hunter.PROVIDER_BY_NAME["openrouter"], "vendor/model", "key")
+        request = urlopen.call_args.args[0]
+        sent = json.loads(request.data.decode("utf-8"))
+        self.assertIn("tools", sent)
+        self.assertEqual(sent["tool_choice"], "auto")
+        self.assertTrue(result.ok)
+        self.assertTrue(result.chat_ok)
+        self.assertTrue(result.tools_ok)
+
+    def test_ping_route_rejects_http_200_without_tool_call(self):
+        response = self.Response({
+            "choices": [{"finish_reason": "stop", "message": {"content": "I can help with that."}}]
+        })
+        with mock.patch.object(hunter.urllib.request, "urlopen", return_value=response):
+            result = hunter.ping_route(hunter.PROVIDER_BY_NAME["openrouter"], "vendor/model", "key")
+        self.assertFalse(result.ok)
+        self.assertEqual(result.status, 200)
+        self.assertTrue(result.chat_ok)
+        self.assertFalse(result.tools_ok)
 
 class PriceTests(unittest.TestCase):
     def test_zero_prices(self):
@@ -296,6 +348,23 @@ class HuntTests(unittest.TestCase):
         self.assertIsNone(chosen)
         self.assertIsNone(result)
 
+    def test_hunt_skips_chat_only_route_and_selects_tool_route(self):
+        candidates = [
+            hunter.ModelInfo("openrouter", "chat-only", 64000, True),
+            hunter.ModelInfo("groq", "tool-ready"),
+        ]
+        checks = []
+
+        def ping(provider, model, api_key, timeout=hunter.DEFAULT_TIMEOUT):
+            if model == "chat-only":
+                return hunter.RouteCheck(False, 200, 10, chat_ok=True, tools_ok=False)
+            return hunter.RouteCheck(True, 200, 12, chat_ok=True, tools_ok=True)
+
+        chosen, result = hunter.hunt(candidates, self.env, ping=ping, report=checks)
+        self.assertEqual(chosen.model, "tool-ready")
+        self.assertTrue(result.tools_ok)
+        self.assertTrue(checks[0]["chat_ok"])
+        self.assertFalse(checks[0]["tools_ok"])
 
 class EnvAndReportTests(unittest.TestCase):
     def setUp(self):
@@ -326,8 +395,13 @@ class EnvAndReportTests(unittest.TestCase):
     def test_report_contains_no_credentials(self):
         env = {"OPENROUTER_API_KEY": "super-secret-value", "GROQ_API_KEY": "second-secret"}
         checks = [{"provider": "openrouter", "model": "x", "ok": True, "status": 200, "latency_ms": 10}]
-        report = hunter.build_report(self.info, hunter.RouteCheck(True, 200, 10), checks, env,
-                                     hunter.available_providers(env))
+        report = hunter.build_report(
+            self.info,
+            hunter.RouteCheck(True, 200, 10, chat_ok=True, tools_ok=True),
+            checks,
+            env,
+            hunter.available_providers(env),
+        )
         text = json.dumps(report)
         self.assertNotIn("super-secret-value", text)
         self.assertNotIn("second-secret", text)
@@ -335,7 +409,7 @@ class EnvAndReportTests(unittest.TestCase):
         self.assertIn("gemini", report["providers_missing_key"])
 
     def test_summary_mentions_route(self):
-        report = hunter.build_report(self.info, hunter.RouteCheck(True, 200, 10), [], {}, [])
+        report = hunter.build_report(self.info, hunter.RouteCheck(True, 200, 10, chat_ok=True, tools_ok=True), [], {}, [])
         text = hunter.summary_markdown(report)
         self.assertIn("Free Route Hunter", text)
         self.assertIn("qwen/qwen3-coder:free", text)
