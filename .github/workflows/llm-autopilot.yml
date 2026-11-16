@@ -45,7 +45,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AUTOPILOT_CATALOG_URLS: ${{ vars.AUTOPILOT_CATALOG_URLS }}
           AUTOPILOT_MAX_ROUTES: "24"
-          AUTOPILOT_TOOL_PROBE: ${{ inputs.tool_probe == false && '0' || '1' }}
+          AUTOPILOT_TOOL_PROBE: ${{ github.event_name == 'workflow_dispatch' && inputs.tool_probe == false && '0' || '1' }}
           AUTOPILOT_TIMEOUT: "20"
         run: |
           set -euo pipefail
