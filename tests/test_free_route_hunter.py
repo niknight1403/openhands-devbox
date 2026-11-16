@@ -70,8 +70,6 @@ def fake_ping(ok: dict[str, bool], seen: list[str] | None = None):
     return ping
 
 
-
-
 class PingRouteTests(unittest.TestCase):
     class Response:
         status = 200
@@ -95,7 +93,7 @@ class PingRouteTests(unittest.TestCase):
                 "message": {"tool_calls": [{
                     "id": "call_1",
                     "type": "function",
-                    "function": {"name": "route_probe", "arguments": "{\\"stadt\\":\\"Berlin\\"}"},
+                    "function": {"name": "route_probe", "arguments": json.dumps({"stadt": "Berlin"})},
                 }]},
             }]
         }
@@ -120,6 +118,7 @@ class PingRouteTests(unittest.TestCase):
         self.assertEqual(result.status, 200)
         self.assertTrue(result.chat_ok)
         self.assertFalse(result.tools_ok)
+
 
 class PriceTests(unittest.TestCase):
     def test_zero_prices(self):
