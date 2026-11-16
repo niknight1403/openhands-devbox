@@ -730,7 +730,10 @@ def run_local(environment: dict[str, str], args: argparse.Namespace, timeout: fl
         # nosec B604 - write_env ist eine eigene Funktion, kein Shell-Aufruf
         shell=args.shell_export,
     )
-    print(f"::notice::Lokale Offline-Tool-Route bereit: {route.label} (Werkzeugaufruf bestätigt, HTTP {check.status}, {check.latency_ms} ms)")
+    print(
+        f"::notice::Lokale Offline-Tool-Route bereit: {route.label} "
+        f"(Werkzeugaufruf bestätigt, HTTP {check.status}, {check.latency_ms} ms)"
+    )
     return 0
 
 
@@ -880,7 +883,10 @@ def main(argv: list[str] | None = None, env: dict[str, str] | None = None, disco
             print("::error::Chat-Routen antworten, aber keine Route hat einen Werkzeugaufruf bestätigt.")
             for entry in checks:
                 if entry.get("chat_ok"):
-                    print(f"::error::  {entry['provider']}:{entry['model']} → HTTP {entry['status']}, Werkzeugaufruf nicht bestätigt")
+                    print(
+                        f"::error::  {entry['provider']}:{entry['model']} → HTTP {entry['status']}, "
+                        "Werkzeugaufruf nicht bestätigt"
+                    )
             return 6
         print("::error::Keine Modellroute antwortete. Geprüft wurden:")
         for entry in checks:
@@ -898,7 +904,10 @@ def main(argv: list[str] | None = None, env: dict[str, str] | None = None, disco
         # nosec B604 - write_env ist eine eigene Funktion, kein Shell-Aufruf
         shell=args.shell_export,
     )
-    print(f"::notice::Gratis-Tool-Route bereit: {chosen.label} (Werkzeugaufruf bestätigt, HTTP {check.status}, {check.latency_ms} ms)")
+    print(
+        f"::notice::Gratis-Tool-Route bereit: {chosen.label} "
+        f"(Werkzeugaufruf bestätigt, HTTP {check.status}, {check.latency_ms} ms)"
+    )
     return 0
 
 
