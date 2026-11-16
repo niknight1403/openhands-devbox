@@ -41,12 +41,12 @@ class AutonomyEngine(private val api: GitHubApi) {
 
         emit(Event.Info("Auftrag angenommen. Durchlauf ${request.iteration} von ${request.iterations}."))
         val gewaehltesProjekt = Projects.findBySlug(settings.project)
-        val targetRepo = gewaehltesProjekt?.let { "${settings.controlOwner}/${it.targetShort}" } ?: settings.targetRepo
+        val targetRepo = Projects.targetRepoFor(gewaehltesProjekt, settings.targetRepo)
         if (gewaehltesProjekt != null) {
             emit(
                 Event.Info(
                     "Projekt: ${gewaehltesProjekt.label} (${gewaehltesProjekt.slug}). " +
-                        "Ziel: ${gewaehltesProjekt.targetShort}. Profil: ${settings.profile}.",
+                        "Ziel: ${gewaehltesProjekt.targetRepoFullName}. Profil: ${settings.profile}.",
                 ),
             )
         } else {
@@ -156,7 +156,7 @@ class AutonomyEngine(private val api: GitHubApi) {
             val details = mergeState?.let {
                 "state=${it.state}, draft=${it.draft}, mergeable=${it.mergeable}, mergeable_state=${it.mergeableState ?: "unbekannt"}"
             } ?: "GitHub-Mergezustand nicht rechtzeitig verfügbar"
-            emit(Event.Failure("PR ${pull.number} wird nicht automatisch gemergt: ${details}. Erforderlich ist ein offener, nicht-draft PR mit mergeable_state=clean.", pull.htmlUrl))
+            emit(Event.Failure("PR ${pull.number} wird nicht automatisch gemergt: $details. Erforderlich ist ein offener, nicht-draft PR mit mergeable_state=clean.", pull.htmlUrl))
             return
         }
 
