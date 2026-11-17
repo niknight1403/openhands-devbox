@@ -91,6 +91,15 @@ Stellschrauben per Umgebung: `HUNTER_PREFER`, `HUNTER_TIMEOUT`,
 `HUNTER_MAX_PER_PROVIDER`, `HUNTER_MIN_CONTEXT`, `HUNTER_ALLOW_PAID`,
 `HUNTER_MODEL`, `HUNTER_REPORT`.
 
+Eigene kostenlose Modelllisten können ohne Codeänderung über Repository-
+Variablen vorgegeben werden. Der Name folgt dem Muster
+`HUNTER_MODELS_<ANBIETER>`, zum Beispiel
+`HUNTER_MODELS_GROQ=openai/gpt-oss-120b,llama-3.1-8b-instant` oder
+`HUNTER_MODELS_CEREBRAS=gpt-oss-120b,qwen-3.8-27b`. Die Variablen enthalten
+nur Modell-IDs, niemals Schlüssel. Ohne eine eigene Liste verwendet der Hunter
+aktuelle sichere Fallbacks und prüft jede Route weiterhin mit einem echten
+Mini-Aufruf.
+
 ## Exit-Codes
 
 | Code | Bedeutung |

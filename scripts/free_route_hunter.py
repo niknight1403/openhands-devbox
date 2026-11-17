@@ -88,7 +88,7 @@ PROVIDERS: tuple[Provider, ...] = (
         name="cerebras",
         base_url="https://api.cerebras.ai/v1",
         key_envs=("CEREBRAS_API_KEY",),
-        models=("qwen-3-coder-480b", "qwen-3-235b-a22b-instruct-2507", "gpt-oss-120b"),
+        models=("gpt-oss-120b", "qwen-3.8-27b"),
         priority=20,
         note="kostenloses Tageskontingent, sehr schnelle Inferenz",
     ),
@@ -96,7 +96,7 @@ PROVIDERS: tuple[Provider, ...] = (
         name="gemini",
         base_url="https://generativelanguage.googleapis.com/v1beta/openai",
         key_envs=("GEMINI_API_KEY", "GOOGLE_API_KEY"),
-        models=("gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-2.0-flash-lite"),
+        models=("gemini-4-hydrogen", "gemini-3.8-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash"),
         priority=30,
         note="Google-AI-Studio-Free-Tier",
     ),
@@ -104,7 +104,7 @@ PROVIDERS: tuple[Provider, ...] = (
         name="groq",
         base_url="https://api.groq.com/openai/v1",
         key_envs=("GROQ_API_KEY",),
-        models=("moonshotai/kimi-k2-instruct", "openai/gpt-oss-120b", "qwen/qwen3-32b", "llama-3.3-70b-versatile"),
+        models=("openai/gpt-oss-120b", "llama-3.3-70b-versatile", "llama-3.1-8b-instant", "openai/gpt-oss-20b"),
         priority=40,
         note="kostenloses Kontingent pro Minute",
     ),
@@ -308,6 +308,16 @@ def provider_credential(provider: Provider, env: dict[str, str]) -> str:
     return provider.credential(env)
 
 
+def configured_models(provider: Provider, env: dict[str, str]) -> tuple[str, ...]:
+    """Liest optionale eigene Modell-IDs, ohne Schlüsselwerte zu lesen."""
+    variable = f"HUNTER_MODELS_{provider.name.upper()}"
+    raw = env.get(variable, "")
+    if not raw.strip():
+        return provider.models
+    models = tuple(item.strip() for item in raw.replace(";", ",").split(",") if item.strip())
+    return models or provider.models
+
+
 def available_providers(env: dict[str, str], include_paid: bool = False) -> list[Provider]:
     """Anbieter, die mit den vorhandenen Zugangsdaten tatsächlich nutzbar sind."""
     usable: list[Provider] = []
@@ -459,7 +469,7 @@ def build_candidates(
         if provider.discover:
             models = discover(timeout, env)
         else:
-            models = [ModelInfo(provider=provider.name, model=model) for model in provider.models]
+            models = [ModelInfo(provider=provider.name, model=model) for model in configured_models(provider, env)]
         candidates.extend(rank_candidates(models, prefer)[:max_per_provider])
 
     ordered = rank_candidates(candidates, prefer)

@@ -160,6 +160,13 @@ class ForcedModelTests(unittest.TestCase):
 
 
 class CandidateBuildingTests(unittest.TestCase):
+    def test_eigene_provider_modelle_ueberschreiben_veraltete_defaults(self):
+        provider = hunter.PROVIDER_BY_NAME["groq"]
+        self.assertEqual(
+            hunter.configured_models(provider, {"HUNTER_MODELS_GROQ": "custom-a;custom-b"}),
+            ("custom-a", "custom-b"),
+        )
+
     def test_only_providers_with_keys(self):
         env = {"OPENROUTER_API_KEY": "key-1", "GROQ_API_KEY": "key-2"}
         discover = fake_discovery([hunter.ModelInfo("openrouter", "qwen/qwen3-coder:free", 262144, True)])
