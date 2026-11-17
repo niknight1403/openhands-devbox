@@ -28,6 +28,7 @@ alles andere ist bewusst knapp gehalten, damit es gelesen wird.
 - 2026-11-17 | Lauf 44017094811 (success) | Route openai/gemini-3.1-flash-lite | Branch agent/app-1794889534503 | PR https://github.com/niknight1403/CyberSarah-Control-Center/pull/316 | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/44017094811]
 - 2026-11-17 | Lauf 44017449282 (success) | Route openai/gemini-3.1-flash-lite | Branch agent/app-1794889722346 | PR https://github.com/niknight1403/CyberSarah-Control-Center/pull/317 | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/44017449282]
 - 2026-11-17 | Lauf 44017931691 (success) | Route openai/openai/gpt-oss-120b | Branch agent/app-1794889971852 | PR https://github.com/niknight1403/CyberSarah-Control-Center/pull/318 | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/44017931691]
+- 2026-11-17 | Lauf 44076682944 (success) | Route openai/gemini-3.1-flash-lite | Branch agent/openhands-20261117-114421 | PR https://github.com/niknight1403/CyberSarah-Control-Center/pull/319 | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/44076682944]
 
 ## Entscheidungen
 
