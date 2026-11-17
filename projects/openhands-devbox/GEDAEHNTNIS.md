@@ -14,6 +14,7 @@ alles andere ist bewusst knapp gehalten, damit es gelesen wird.
 - 2026-11-17 | Profil angelegt; die vorhandene Android-Projektzentrale, Live-App-Ansicht und Free-Route-Hunter-Anbindung sind die Ausgangsbasis für die nächsten Sprints.
 - 2026-11-17 | Lauf 44008918185 (failure) | Route `openai/gpt-oss-120b` | Branch `agent/app-devbox-sprint-1-20261117` | PR keiner | Dateien 0 | Ursache: keine nutzbare Modellroute nach Rate-Limits und veralteten Fallback-IDs. [Lauf](https://github.com/niknight1403/openhands-devbox/actions/runs/44008918185)
 - 2026-11-17 | Lauf 44010545881 (failure) | Route openai/gpt-oss-120b | Branch agent/app-devbox-sprint-2-20261117 | PR keiner | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/44010545881]
+- 2026-11-17 | Lauf 44012135916 (success) | Route openai/gpt-oss-120b | Branch agent/app-devbox-sprint-3-20261117 | PR https://github.com/niknight1403/openhands-devbox/pull/29 | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/44012135916]
 
 ## Entscheidungen
 
