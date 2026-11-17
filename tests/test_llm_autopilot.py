@@ -28,7 +28,18 @@ def post_factory(answers: dict[tuple[str, str], tuple[int, object]]):
 
 
 CHAT_OK = {"choices": [{"message": {"content": "pong"}, "finish_reason": "stop"}]}
-TOOL_OK = {"choices": [{"message": {"tool_calls": [{"id": "1", "type": "function"}]}, "finish_reason": "tool_calls"}]}
+TOOL_OK = {
+    "choices": [{
+        "message": {
+            "tool_calls": [{
+                "id": "1",
+                "type": "function",
+                "function": {"name": "route_probe", "arguments": "{\\"stadt\\": \\"Berlin\\"}"},
+            }]
+        },
+        "finish_reason": "tool_calls",
+    }]
+}
 TOOL_TEXT_ONLY = {"choices": [{"message": {"content": "Berlin"}, "finish_reason": "stop"}]}
 
 
@@ -182,11 +193,25 @@ class CandidateTests(unittest.TestCase):
 
 
 class ToolDetectionTests(unittest.TestCase):
-    def test_has_tool_call_variants(self):
+    def test_has_tool_call_requires_a_structured_function_payload(self):
         self.assertTrue(autopilot.has_tool_call(TOOL_OK))
         self.assertFalse(autopilot.has_tool_call(TOOL_TEXT_ONLY))
-        self.assertTrue(autopilot.has_tool_call({"choices": [{"message": {"tool_calls": [1]}}]}))
-        self.assertTrue(autopilot.has_tool_call({"choices": [{"message": {"function_call": {"name": "x"}}}]}))
+        self.assertFalse(autopilot.has_tool_call({"choices": [{"finish_reason": "tool_calls"}]}))
+        self.assertFalse(autopilot.has_tool_call({
+            "choices": [{"finish_reason": "tool_calls", "message": {"tool_calls": []}}]
+        }))
+        self.assertFalse(autopilot.has_tool_call({"choices": [{"message": {"tool_calls": [1]}}]}))
+        self.assertFalse(autopilot.has_tool_call({
+            "choices": [{"message": {"tool_calls": [{
+                "id": "1", "type": "function", "function": {"arguments": "{}"}
+            }]}}]
+        }))
+        self.assertTrue(autopilot.has_tool_call({
+            "choices": [{"message": {"function_call": {"name": "route_probe", "arguments": "{}"}}}]
+        }))
+        self.assertFalse(autopilot.has_tool_call({
+            "choices": [{"finish_reason": "function_call", "message": {"function_call": {}}}]
+        }))
         self.assertFalse(autopilot.has_tool_call(None))
         self.assertFalse(autopilot.has_tool_call({"choices": []}))
 
