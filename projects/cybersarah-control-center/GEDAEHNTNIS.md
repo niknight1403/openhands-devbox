@@ -24,6 +24,7 @@ alles andere ist bewusst knapp gehalten, damit es gelesen wird.
 - 2026-11-14 | Lauf 43584298582 (failure) | Route openai/gpt-oss-120b | Branch agent/openhands-20261114-101411 | PR keiner | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/43584298582]
 - 2026-11-15 | Lauf 43705507718 (success) | Route openrouter/inclusionai/ling-3.2-flash:free | Branch agent/openhands-20261115-104417 | PR https://github.com/niknight1403/CyberSarah-Control-Center/pull/311 | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/43705507718]
 - 2026-11-16 | Lauf 43854274392 (success) | Route openrouter/inclusionai/ling-3.2-flash:free | Branch agent/openhands-20261116-110312 | PR https://github.com/niknight1403/CyberSarah-Control-Center/pull/314 | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/43854274392]
+- 2026-11-17 | Lauf 44016642988 (success) | Route openai/openai/gpt-oss-120b | Branch agent/app-1794889302463 | PR https://github.com/niknight1403/CyberSarah-Control-Center/pull/315 | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/44016642988]
 
 ## Entscheidungen
 
