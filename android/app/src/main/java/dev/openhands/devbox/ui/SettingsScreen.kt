@@ -52,6 +52,7 @@ fun SettingsScreen(
     var targetRepo by remember(settings.targetRepo) { mutableStateOf(settings.targetRepo) }
     var profile by remember(settings.profile) { mutableStateOf(settings.profile) }
     var model by remember(settings.model) { mutableStateOf(settings.model) }
+    var livePreviewUrl by remember(settings.livePreviewUrl) { mutableStateOf(settings.livePreviewUrl) }
     var autoMerge by remember(settings.autoMerge) { mutableStateOf(settings.autoMerge) }
     var autoIterate by remember(settings.autoIterate) { mutableStateOf(settings.autoIterate) }
     var maxIterations by remember(settings.maxIterations) { mutableStateOf(settings.maxIterations) }
@@ -98,6 +99,7 @@ fun SettingsScreen(
                                 targetRepo = targetRepo.trim(),
                                 profile = profile,
                                 model = model.trim(),
+                                livePreviewUrl = livePreviewUrl.trim(),
                                 autoMerge = autoMerge,
                                 autoIterate = autoIterate,
                                 maxIterations = maxIterations,
@@ -183,6 +185,15 @@ fun SettingsScreen(
                 singleLine = true,
             )
 
+            OutlinedTextField(
+                value = livePreviewUrl,
+                onValueChange = { livePreviewUrl = it },
+                label = { Text("Live-App-URL (http/https, optional)" ) },
+                supportingText = { Text("Die URL wird im Bereich Live App in einer geschützten Vorschau geöffnet.") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
+
             Spacer(Modifier.height(4.dp))
             Text("Autonomie", style = MaterialTheme.typography.titleMedium)
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -231,6 +242,7 @@ fun SettingsScreen(
                             targetRepo = targetRepo.trim(),
                             profile = profile,
                             model = model.trim(),
+                            livePreviewUrl = livePreviewUrl.trim(),
                             autoMerge = autoMerge,
                             autoIterate = autoIterate,
                             maxIterations = maxIterations,

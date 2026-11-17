@@ -40,3 +40,9 @@ gewählt, Auftrag aus dem Eingabefeld oder der Autonom-Wache-Text.
    `workflow_call` startet.
 4. `python3 -m unittest tests.test_projekte` ausführen. Der Test prüft, dass
    Steckbrief, Prompt und Whitelist zusammenpassen.
+
+## Vorhandene Profile
+
+- `cybersarah-control-center`: wiederkehrender Auftrag für das CyberSarah-Zielprojekt.
+- `openhands-devbox`: wiederkehrender Auftrag für die Devbox selbst; dieser Auftrag
+  ist für sequenzielle Verbesserungs-Sprints der Android-App, Automation und Tests gedacht.

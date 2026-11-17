@@ -28,21 +28,32 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun DevboxApp(viewModel: ChatViewModel = viewModel()) {
-    var showSettings by remember { mutableStateOf(false) }
+    var screen by remember { mutableStateOf(AppScreen.Chat) }
 
-    if (showSettings) {
-        SettingsScreen(
+    when (screen) {
+        AppScreen.Settings -> SettingsScreen(
             settings = viewModel.settings,
             connectionCheck = viewModel.connectionCheck,
             onSave = { updated ->
                 viewModel.updateSettings(updated)
-                showSettings = false
+                screen = AppScreen.Chat
             },
             onTest = viewModel::testConnection,
-            onBack = { showSettings = false },
+            onBack = { screen = AppScreen.Chat },
         )
-    } else {
-        ChatScreen(
+        AppScreen.Projects -> ProjectHubScreen(
+            selectedProject = viewModel.settings.project,
+            model = viewModel.settings.model,
+            onSelectProject = { slug -> viewModel.updateSettings(viewModel.settings.copy(project = slug)) },
+            onOpenLiveApp = { screen = AppScreen.LiveApp },
+            onBack = { screen = AppScreen.Chat },
+        )
+        AppScreen.LiveApp -> LivePreviewScreen(
+            url = viewModel.settings.livePreviewUrl,
+            projectLabel = viewModel.settings.project.ifBlank { "Projekt" },
+            onBack = { screen = AppScreen.Chat },
+        )
+        AppScreen.Chat -> ChatScreen(
             messages = viewModel.messages,
             busy = viewModel.busy,
             statusText = viewModel.statusText,
@@ -56,8 +67,12 @@ private fun DevboxApp(viewModel: ChatViewModel = viewModel()) {
             onRemoveAttachment = viewModel::removeAttachment,
             onSend = viewModel::sendTask,
             onStop = viewModel::stop,
-            onOpenSettings = { showSettings = true },
+            onOpenSettings = { screen = AppScreen.Settings },
+            onOpenProjects = { screen = AppScreen.Projects },
+            onOpenLiveApp = { screen = AppScreen.LiveApp },
             onMerge = viewModel::mergePr,
         )
     }
 }
+
+private enum class AppScreen { Chat, Projects, LiveApp, Settings }

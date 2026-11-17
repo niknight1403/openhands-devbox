@@ -4,7 +4,7 @@ Eine mobile, autonome Entwicklungsumgebung auf Basis der offiziellen OpenHands A
 
 ## Was enthalten ist
 
-- **Android-App:** installierbare Steuer-App (`android/`). Eine Chat-Eingabe startet einen vollständigen Entwicklungsdurchlauf, zeigt die Agentenschritte live, öffnet den Draft-PR und kann ihn im Autonom-Modus mergen und nachbessern lassen.
+- **Android-App:** installierbare Steuer-App (`android/`). Eine Chat-Eingabe startet einen vollständigen Entwicklungsdurchlauf, zeigt die Agentenschritte live, öffnet den Draft-PR und kann ihn im Autonom-Modus mergen und nachbessern lassen. Die **Projektzentrale** bündelt mehrere freigegebene Projekte, der Bereich **Live App** öffnet die konfigurierte App-Vorschau direkt in der App.
 - **Agent Canvas:** aktuelle OpenHands-Steueroberfläche mit LLM-/Agent-Profilen, MCP-Server-Einstellungen und Projektkontext.
 - **Superagenten-Lauf:** drei getrennte OpenHands-CLI-Durchläufe — Architektur/Plan, Implementierung und Qualitätsreview — mit gemeinsamem Workspace.
 - **Rollenprofile:** zusätzlich auswählbare Modi für Implementierung, Frontend, Sicherheit und Qualität.
@@ -51,6 +51,8 @@ Qualitäts-Gate. Details: [Gedächtnis und Dateien](docs/gedaechtnis-und-dateien
 1. Öffne dieses Repository in der GitHub-App und gehe zu **Actions → OpenHands Task → Run workflow**.
 2. Gib die Aufgabe ein. Wähle ein Rollenprofil; **Superagent** ist der Standard. Optional kannst du ein Modell im LiteLLM-Format angeben, zum Beispiel `openrouter/provider/model`.
 3. Starte den Lauf. Verfolge die Phasen in den Action-Logs und prüfe den resultierenden Draft-PR vor dem Merge.
+
+In der Android-App führt **Projekte** zur Projektzentrale. Dort wählst du ein freigegebenes Ziel, siehst den Free-Route-Hunter-Status und öffnest über **Live App** die Vorschau. Die URL wird unter **Einstellungen → Live-App-URL** hinterlegt und muss mit `http://` oder `https://` beginnen.
 
 Ein leer gelassenes Aufgabenfeld startet den begrenzten Autonom-Wache-Auftrag. Geplant ist ein Lauf am Montag und Donnerstag um **07:00 UTC**; die lokale Uhrzeit verschiebt sich mit Sommer-/Winterzeit.
 

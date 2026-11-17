@@ -67,6 +67,8 @@ fun ChatScreen(
     onRemoveAttachment: (String) -> Unit,
     onStop: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenProjects: () -> Unit,
+    onOpenLiveApp: () -> Unit,
     onMerge: (Int) -> Unit,
 ) {
     var draft by remember { mutableStateOf("") }
@@ -96,6 +98,8 @@ fun ChatScreen(
                     }
                 },
                 actions = {
+                    TextButton(onClick = onOpenProjects) { Text("Projekte") }
+                    TextButton(onClick = onOpenLiveApp) { Text("Live App") }
                     if (runUrl != null) {
                         TextButton(onClick = { runUrl.let { uriHandler.openUri(it) } }) { Text("Lauf") }
                     }

@@ -17,6 +17,7 @@ data class Settings(
     val targetRepo: String = "niknight1403/Agenten-Villa",
     val profile: String = "superagent",
     val model: String = "",
+    val livePreviewUrl: String = "",
     val autoMerge: Boolean = false,
     val autoIterate: Boolean = false,
     val maxIterations: Int = 2,
@@ -83,6 +84,7 @@ class SettingsStore(context: Context) {
         targetRepo = prefs.getString(KEY_TARGET, "niknight1403/Agenten-Villa") ?: "niknight1403/Agenten-Villa",
         profile = prefs.getString(KEY_PROFILE, "superagent") ?: "superagent",
         model = prefs.getString(KEY_MODEL, "") ?: "",
+        livePreviewUrl = prefs.getString(KEY_LIVE_PREVIEW, "") ?: "",
         autoMerge = prefs.getBoolean(KEY_AUTO_MERGE, false),
         autoIterate = prefs.getBoolean(KEY_AUTO_ITERATE, false),
         maxIterations = prefs.getInt(KEY_MAX_ITERATIONS, 2),
@@ -103,6 +105,7 @@ class SettingsStore(context: Context) {
             .putString(KEY_TARGET, settings.targetRepo)
             .putString(KEY_PROFILE, settings.profile)
             .putString(KEY_MODEL, settings.model)
+            .putString(KEY_LIVE_PREVIEW, settings.livePreviewUrl)
             .putBoolean(KEY_AUTO_MERGE, settings.autoMerge)
             .putBoolean(KEY_AUTO_ITERATE, settings.autoIterate)
             .putInt(KEY_MAX_ITERATIONS, settings.maxIterations.coerceIn(1, 3))
@@ -118,6 +121,7 @@ class SettingsStore(context: Context) {
         const val KEY_TARGET = "target_repo"
         const val KEY_PROFILE = "profile"
         const val KEY_MODEL = "model"
+        const val KEY_LIVE_PREVIEW = "live_preview_url"
         const val KEY_AUTO_MERGE = "auto_merge"
         const val KEY_AUTO_ITERATE = "auto_iterate"
         const val KEY_MAX_ITERATIONS = "max_iterations"
