@@ -268,8 +268,21 @@ def fetch_text(url: str, timeout: float = DEFAULT_TIMEOUT, token: str = "") -> s
         return response.read(MAX_SKILL_BYTES + 1).decode("utf-8", errors="replace")
 
 
+def _valid_tool_arguments(arguments: object) -> bool:
+    """Werkzeugargumente müssen ein JSON-Objekt oder ein JSON-Objekt-String sein."""
+    if isinstance(arguments, dict):
+        return True
+    if not isinstance(arguments, str) or not arguments.strip():
+        return False
+    try:
+        parsed = json.loads(arguments)
+    except (TypeError, ValueError):
+        return False
+    return isinstance(parsed, dict)
+
+
 def has_tool_call(payload: object) -> bool:
-    """Akzeptiert nur strukturell vorhandene Function-Aufrufe, nie finish_reason allein."""
+    """Akzeptiert nur vollständig strukturierte Function-Aufrufe, nie finish_reason allein."""
     if not isinstance(payload, dict):
         return False
     choices = payload.get("choices")
@@ -284,30 +297,20 @@ def has_tool_call(payload: object) -> bool:
         for call in tool_calls:
             if not isinstance(call, dict) or call.get("type") != "function":
                 continue
+            call_id = call.get("id")
             function = call.get("function")
-            if not isinstance(function, dict):
+            if not isinstance(call_id, str) or not call_id.strip() or not isinstance(function, dict):
                 continue
             name = function.get("name")
-            arguments = function.get("arguments")
-            if (
-                isinstance(name, str)
-                and name.strip()
-                and ((isinstance(arguments, str) and arguments.strip()) or isinstance(arguments, dict))
-            ):
+            if isinstance(name, str) and name.strip() and _valid_tool_arguments(function.get("arguments")):
                 return True
 
     function_call = message.get("function_call")
     if isinstance(function_call, dict):
         name = function_call.get("name")
-        arguments = function_call.get("arguments")
-        if (
-            isinstance(name, str)
-            and name.strip()
-            and ((isinstance(arguments, str) and arguments.strip()) or isinstance(arguments, dict))
-        ):
+        if isinstance(name, str) and name.strip() and _valid_tool_arguments(function_call.get("arguments")):
             return True
     return False
-
 
 def probe_chat(route: CatalogRoute, model: str, api_key: str, timeout: float, post=post_json) -> dict:
     status, payload, latency = post(
