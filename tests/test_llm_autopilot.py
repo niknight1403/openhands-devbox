@@ -195,12 +195,35 @@ class CandidateTests(unittest.TestCase):
 class ToolDetectionTests(unittest.TestCase):
     def test_has_tool_call_requires_a_structured_function_payload(self):
         self.assertTrue(autopilot.has_tool_call(TOOL_OK))
+        self.assertTrue(autopilot.has_tool_call({
+            "choices": [{"message": TOOL_OK["choices"][0]["message"]}]
+        }))
         self.assertFalse(autopilot.has_tool_call(TOOL_TEXT_ONLY))
         self.assertFalse(autopilot.has_tool_call({"choices": [{"finish_reason": "tool_calls"}]}))
         self.assertFalse(autopilot.has_tool_call({
             "choices": [{"finish_reason": "tool_calls", "message": {"tool_calls": []}}]
         }))
+        self.assertFalse(autopilot.has_tool_call({
+            "choices": [{"message": {"tool_calls": None}}]
+        }))
         self.assertFalse(autopilot.has_tool_call({"choices": [{"message": {"tool_calls": [1]}}]}))
+        self.assertFalse(autopilot.has_tool_call({
+            "choices": [{"message": {"tool_calls": [{
+                "type": "function", "function": {"name": "route_probe", "arguments": "{}"}
+            }]}}]
+        }))
+        self.assertFalse(autopilot.has_tool_call({
+            "choices": [{"message": {"tool_calls": [{
+                "id": "1", "type": "function",
+                "function": {"name": "route_probe", "arguments": "not-json"}
+            }]}}]
+        }))
+        self.assertFalse(autopilot.has_tool_call({
+            "choices": [{"message": {"tool_calls": [{
+                "id": "1", "type": "function",
+                "function": {"name": "route_probe", "arguments": "[]"}
+            }]}}]
+        }))
         self.assertFalse(autopilot.has_tool_call({
             "choices": [{"message": {"tool_calls": [{
                 "id": "1", "type": "function", "function": {"arguments": "{}"}
@@ -210,11 +233,10 @@ class ToolDetectionTests(unittest.TestCase):
             "choices": [{"message": {"function_call": {"name": "route_probe", "arguments": "{}"}}}]
         }))
         self.assertFalse(autopilot.has_tool_call({
-            "choices": [{"finish_reason": "function_call", "message": {"function_call": {}}}]
+            "choices": [{"finish_reason": "function_call", "message": {"function_call": {"name": "route_probe"}}}]
         }))
         self.assertFalse(autopilot.has_tool_call(None))
         self.assertFalse(autopilot.has_tool_call({"choices": []}))
-
     def test_probe_all_marks_tool_ready_route(self):
         route = autopilot.CatalogRoute("openrouter", "https://or.invalid/v1", ("coder:free",), key_envs=("K",))
         post = post_factory(
