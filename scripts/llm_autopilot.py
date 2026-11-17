@@ -289,17 +289,23 @@ def has_tool_call(payload: object) -> bool:
                 continue
             name = function.get("name")
             arguments = function.get("arguments")
-            if isinstance(name, str) and name.strip():
-                if (isinstance(arguments, str) and arguments.strip()) or isinstance(arguments, dict):
-                    return True
+            if (
+                isinstance(name, str)
+                and name.strip()
+                and ((isinstance(arguments, str) and arguments.strip()) or isinstance(arguments, dict))
+            ):
+                return True
 
     function_call = message.get("function_call")
     if isinstance(function_call, dict):
         name = function_call.get("name")
         arguments = function_call.get("arguments")
-        if isinstance(name, str) and name.strip():
-            if (isinstance(arguments, str) and arguments.strip()) or isinstance(arguments, dict):
-                return True
+        if (
+            isinstance(name, str)
+            and name.strip()
+            and ((isinstance(arguments, str) and arguments.strip()) or isinstance(arguments, dict))
+        ):
+            return True
     return False
 
 
