@@ -1,13 +1,19 @@
 # Projektgedächtnis: openhands-devbox
 
-Dieses Gedächtnis gehört zum Devbox-Projekt und wird von den Läufen selbst
-fortgeschrieben. Der Workflow trägt jeden Lauf unter „Läufe“ ein; die
-Projektentscheidungen und Befunde bleiben hier knapp und prüfbar.
+Dieses Gedächtnis gehört zum Projekt und wird von den Läufen selbst
+fortgeschrieben. Der Workflow trägt jeden Lauf als Zeile unter "Läufe" ein;
+alles andere ist bewusst knapp gehalten, damit es gelesen wird.
+
+- **Wiederhole nicht**: was schon versucht wurde und nicht funktioniert hat.
+- **Offene Punkte**: was ein Mensch entscheiden oder liefern muss.
+- **Entscheidungen**: was gilt, damit es nicht erneut verhandelt wird.
+- **Befunde**: belegte Erkenntnisse über das Zielprojekt.
 
 ## Läufe
 
 - 2026-11-17 | Profil angelegt; die vorhandene Android-Projektzentrale, Live-App-Ansicht und Free-Route-Hunter-Anbindung sind die Ausgangsbasis für die nächsten Sprints.
 - 2026-11-17 | Lauf 44008918185 (failure) | Route `openai/gpt-oss-120b` | Branch `agent/app-devbox-sprint-1-20261117` | PR keiner | Dateien 0 | Ursache: keine nutzbare Modellroute nach Rate-Limits und veralteten Fallback-IDs. [Lauf](https://github.com/niknight1403/openhands-devbox/actions/runs/44008918185)
+- 2026-11-17 | Lauf 44010545881 (failure) | Route openai/gpt-oss-120b | Branch agent/app-devbox-sprint-2-20261117 | PR keiner | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/44010545881]
 
 ## Entscheidungen
 
@@ -33,3 +39,4 @@ Projektentscheidungen und Befunde bleiben hier knapp und prüfbar.
 - Die neue Route-Hunter-Version muss in den nächsten Sprintläufen verwendet und gegen die verfügbaren Repository-Secrets geprüft werden.
 - Falls alle kostenlosen Provider kontingentbedingt ausfallen, muss ein Mensch Providerkontingent oder zusätzliche gültige kostenlose Routen bereitstellen.
 - Nächster Code-Schritt: Android-Projektzentrale und Live-App-Ansicht mit UI-Tests oder einer prüfbaren Zustandsabstraktion absichern.
+- 2026-11-17 | Lauf 44010545881 endete mit 'failure'; Ursache im Laufprotokoll prüfen, bevor derselbe Weg erneut versucht wird. [https://github.com/niknight1403/openhands-devbox/actions/runs/44010545881]
