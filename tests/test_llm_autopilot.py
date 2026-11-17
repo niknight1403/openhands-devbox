@@ -34,7 +34,7 @@ TOOL_OK = {
             "tool_calls": [{
                 "id": "1",
                 "type": "function",
-                "function": {"name": "route_probe", "arguments": "{\\"stadt\\": \\"Berlin\\"}"},
+                "function": {"name": "route_probe", "arguments": '{"stadt": "Berlin"}'},
             }]
         },
         "finish_reason": "tool_calls",
