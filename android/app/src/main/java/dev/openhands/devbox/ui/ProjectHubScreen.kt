@@ -12,17 +12,21 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.openhands.devbox.data.ProjectChoice
 import dev.openhands.devbox.data.Projects
+import dev.openhands.devbox.data.resolveProjectHubState
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProjectHubScreen(
     selectedProject: String,
@@ -31,7 +35,7 @@ fun ProjectHubScreen(
     onOpenLiveApp: () -> Unit,
     onBack: () -> Unit,
 ) {
-    val selected = Projects.findBySlug(selectedProject)
+    val hubState = remember(selectedProject, model) { resolveProjectHubState(selectedProject, model) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -66,25 +70,21 @@ fun ProjectHubScreen(
                 Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Free Route Hunter", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        if (model.isBlank()) {
-                            "Automatisch aktiv: Vor jedem Lauf wird eine erreichbare Gratis-Route gesucht und geprüft."
-                        } else {
-                            "Manuelles Modell aktiv: $model. Leere das Modellfeld, um den Hunter zu verwenden."
-                        },
+                        hubState.hunterDescription,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     FilterChip(
-                        selected = model.isBlank(),
+                        selected = hubState.usesAutomaticRoute,
                         onClick = {},
                         enabled = false,
-                        label = { Text(if (model.isBlank()) "Automatische Route" else "Modell fest vorgegeben") },
+                        label = { Text(hubState.routeChipLabel) },
                     )
                 }
             }
-            if (selected != null) {
+            hubState.liveOpenLabel?.let { label ->
                 Button(onClick = onOpenLiveApp, modifier = Modifier.fillMaxWidth()) {
-                    Text("${selected.label} live öffnen")
+                    Text(label)
                 }
             }
         }

@@ -14,6 +14,7 @@ alles andere ist bewusst knapp gehalten, damit es gelesen wird.
 - 2026-11-17 | Profil angelegt; die vorhandene Android-Projektzentrale, Live-App-Ansicht und Free-Route-Hunter-Anbindung sind die Ausgangsbasis für die nächsten Sprints.
 - 2026-11-17 | Lauf 44008918185 (failure) | Route `openai/gpt-oss-120b` | Branch `agent/app-devbox-sprint-1-20261117` | PR keiner | Dateien 0 | Ursache: keine nutzbare Modellroute nach Rate-Limits und veralteten Fallback-IDs. [Lauf](https://github.com/niknight1403/openhands-devbox/actions/runs/44008918185)
 - 2026-11-17 | Lauf 44010545881 (failure) | Route openai/gpt-oss-120b | Branch agent/app-devbox-sprint-2-20261117 | PR keiner | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/44010545881]
+- 2026-11-17 | Sprint-Plan 3 umgesetzt: LivePreviewState und ProjectHubState als Android-freie Zustandsabstraktion in data/ neu; LivePreviewScreen und ProjectHubScreen rendern Lade-, Leer- und Fehlerzustände daraus; 14 neue JUnit4-Tests green; Python 196/196; Android testDebugUnitTest und assembleDebug erfolgreich (Android-SDK mit JAVA_HOME/JDK 17 und expliziter ANDROID_HOME).
 
 ## Entscheidungen
 
@@ -24,7 +25,8 @@ alles andere ist bewusst knapp gehalten, damit es gelesen wird.
 ## Befunde
 
 - Die Python-Testbasis umfasst nach Installation von PyYAML 196 erfolgreiche Tests.
-- Ein Android-Build ist in der aktuellen Sandbox ohne Android-SDK nicht möglich.
+- Ein Android-Build braucht `JAVA_HOME` (JDK 17 aus dem Toolcache) und `ANDROID_HOME`; funktioniert in der Sandbox (Sprint 3: testDebugUnitTest und assembleDebug erfolgreich).
+- Experimentelle Material3-APIs (TopAppBar) brauchen `@OptIn(ExperimentalMaterial3Api::class)`; ohne OptIn schlägt `compileDebugKotlin` hart fehl. Konvention von ChatScreen/SettingsScreen.
 - Provider-Modell-IDs ändern sich; Cerebras und Groq verwenden deshalb aktualisierte Fallbacks, eigene Listen können über `HUNTER_MODELS_<ANBIETER>` gesetzt werden.
 - Lauf 44008918185 scheiterte im OpenHands-Superagenten an Provider-Rate-Limits beziehungsweise nicht mehr verfügbaren Modell-IDs, nicht an einem Devbox-Codefehler.
 
@@ -38,5 +40,5 @@ alles andere ist bewusst knapp gehalten, damit es gelesen wird.
 
 - Die neue Route-Hunter-Version muss in den nächsten Sprintläufen verwendet und gegen die verfügbaren Repository-Secrets geprüft werden.
 - Falls alle kostenlosen Provider kontingentbedingt ausfallen, muss ein Mensch Providerkontingent oder zusätzliche gültige kostenlose Routen bereitstellen.
-- Nächster Code-Schritt: Android-Projektzentrale und Live-App-Ansicht mit UI-Tests oder einer prüfbaren Zustandsabstraktion absichern.
+- Nächster Code-Schritt: Android-E2E-Tests (Compose-UI oder UiAutomator) ergänzen, sobald ein Emulator oder Testgerät verfügbar ist; die Zustandsabstraktion (LivePreviewState, ProjectHubState) ist inzwischen mit JUnit4-Unit-Tests abgesichert.
 - 2026-11-17 | Lauf 44010545881 endete mit 'failure'; Ursache im Laufprotokoll prüfen, bevor derselbe Weg erneut versucht wird. [https://github.com/niknight1403/openhands-devbox/actions/runs/44010545881]
