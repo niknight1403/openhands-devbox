@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -24,6 +25,7 @@ import dev.openhands.devbox.data.ProjectChoice
 import dev.openhands.devbox.data.Projects
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun ProjectHubScreen(
     selectedProject: String,
     model: String,
