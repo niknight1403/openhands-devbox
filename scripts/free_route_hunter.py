@@ -3,7 +3,8 @@
 
 Der Hunter ersetzt fest verdrahtete Modellnamen. Er baut die Kandidatenliste aus
 den tatsächlich hinterlegten Zugangsdaten, sortiert sie nach Eignung für einen
-agentischen Coding-Lauf, prüft jeden Kandidaten mit einem echten Function-Tool-Aufruf und schreibt erst eine bestätigte Tool-Route in die Umgebung.
+agentischen Coding-Lauf, prüft jeden Kandidaten mit einem echten Function-Tool-Aufruf
+und schreibt erst eine bestätigte Tool-Route in die Umgebung.
 
 Eigenschaften
 -------------
@@ -910,7 +911,10 @@ def main(argv: list[str] | None = None, env: dict[str, str] | None = None, disco
         # nosec B604 - write_env ist eine eigene Funktion, kein Shell-Aufruf
         shell=args.shell_export,
     )
-    print(f"::notice::Gratis-Tool-Route bereit: {chosen.label} (Tool-Call bestätigt, HTTP {check.status}, {check.latency_ms} ms)")
+    print(
+        f"::notice::Gratis-Tool-Route bereit: {chosen.label} "
+        f"(Tool-Call bestätigt, HTTP {check.status}, {check.latency_ms} ms)"
+    )
     return 0
 
 
