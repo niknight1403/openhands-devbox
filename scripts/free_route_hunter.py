@@ -796,7 +796,9 @@ def summary_markdown(report: dict) -> str:
         lines.append(f"- Modus: offline, nur lokale Route `{report.get('base_url', '')}`")
     if chosen:
         lines.append(f"- Route: `{chosen['provider']}` / `{chosen['model']}` ({chosen['latency_ms']} ms)")
-        lines.append(f"- Chat erreichbar: {'ja' if chosen.get('chat_ok') else 'nein'}; Tool-Call bestätigt: {'ja' if chosen.get('tools_ok') else 'nein'}")
+        chat_status = "ja" if chosen.get("chat_ok") else "nein"
+        tool_status = "ja" if chosen.get("tools_ok") else "nein"
+        lines.append(f"- Chat erreichbar: {chat_status}; Tool-Call bestätigt: {tool_status}")
     else:
         lines.append("- Route: keine erreichbare Gratis-Route")
     lines.append(f"- Geprüfte Kandidaten: {len(checked)}")
