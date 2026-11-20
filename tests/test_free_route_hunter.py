@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
+from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
@@ -425,6 +426,93 @@ class MainTests(unittest.TestCase):
         )
         self.assertEqual(code, 0)
         self.assertEqual(written["LLM_MODEL"], "openai/llama-3.3-70b-versatile")
+
+
+
+class PingRouteTests(unittest.TestCase):
+    class Response:
+        status = 200
+
+        def __init__(self, payload):
+            self.payload = payload
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return json.dumps(self.payload).encode("utf-8")
+
+    def run_ping(self, answer):
+        response = self.Response(answer)
+        with mock.patch.object(hunter.urllib.request, "urlopen", return_value=response) as urlopen:
+            result = hunter.ping_route(hunter.PROVIDER_BY_NAME["openrouter"], "vendor/model", "test-key")
+        request = urlopen.call_args.args[0]
+        sent = json.loads(request.data.decode("utf-8"))
+        return result, sent
+
+    def test_ping_route_requires_a_structured_tool_call(self):
+        answer = {
+            "choices": [{
+                "finish_reason": "tool_calls",
+                "message": {"tool_calls": [{
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {"name": "route_probe", "arguments": json.dumps({"city": "Berlin"})},
+                }]},
+            }]
+        }
+        result, sent = self.run_ping(answer)
+        self.assertIn("tools", sent)
+        self.assertEqual(sent["tool_choice"], "auto")
+        self.assertTrue(result.ok)
+        self.assertTrue(result.chat_ok)
+        self.assertTrue(result.tools_ok)
+
+    def test_ping_route_rejects_finish_reason_without_message(self):
+        result, _ = self.run_ping({"choices": [{"finish_reason": "tool_calls"}]})
+        self.assertFalse(result.ok)
+        self.assertTrue(result.chat_ok)
+        self.assertFalse(result.tools_ok)
+
+    def test_ping_route_rejects_missing_null_and_empty_tool_calls(self):
+        for message in ({}, {"tool_calls": None}, {"tool_calls": []}):
+            with self.subTest(message=message):
+                result, _ = self.run_ping({"choices": [{"finish_reason": "tool_calls", "message": message}]})
+                self.assertFalse(result.ok)
+                self.assertFalse(result.tools_ok)
+
+    def test_ping_route_rejects_malformed_entries_and_arguments(self):
+        invalid_calls = [
+            None,
+            {"type": "function", "function": {"name": "route_probe", "arguments": "{}"}},
+            {"id": "call_1", "type": "other", "function": {"name": "route_probe", "arguments": "{}"}},
+            {"id": "call_1", "type": "function", "function": {"name": "", "arguments": "{}"}},
+            {"id": "call_1", "type": "function", "function": {"name": "route_probe", "arguments": "{"}},
+            {"id": "call_1", "type": "function", "function": {"name": "route_probe", "arguments": "[]"}},
+        ]
+        for call in invalid_calls:
+            with self.subTest(call=call):
+                result, _ = self.run_ping({
+                    "choices": [{"message": {"tool_calls": [call]}}],
+                })
+                self.assertFalse(result.ok)
+                self.assertFalse(result.tools_ok)
+
+    def test_ping_route_accepts_valid_legacy_function_call(self):
+        result, _ = self.run_ping({
+            "choices": [{
+                "finish_reason": "function_call",
+                "message": {"function_call": {
+                    "name": "route_probe",
+                    "arguments": json.dumps({"city": "Berlin"}),
+                }},
+            }]
+        })
+        self.assertTrue(result.ok)
+        self.assertTrue(result.tools_ok)
 
 
 if __name__ == "__main__":
