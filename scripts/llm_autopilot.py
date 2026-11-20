@@ -268,25 +268,56 @@ def fetch_text(url: str, timeout: float = DEFAULT_TIMEOUT, token: str = "") -> s
         return response.read(MAX_SKILL_BYTES + 1).decode("utf-8", errors="replace")
 
 
+def _valid_tool_arguments(arguments: object) -> bool:
+    """Werkzeugargumente müssen ein JSON-Objekt oder ein JSON-Objekt-String sein."""
+    if isinstance(arguments, dict):
+        return True
+    if not isinstance(arguments, str) or not arguments.strip():
+        return False
+    try:
+        parsed = json.loads(arguments)
+    except (TypeError, ValueError):
+        return False
+    return isinstance(parsed, dict)
+
+
 def has_tool_call(payload: object) -> bool:
-    """Wertet eine Chat-Antwort darauf aus, ob das Modell wirklich ein Werkzeug aufrief."""
+    """Akzeptiert nur vollständig strukturierte Function-Aufrufe, nie finish_reason allein."""
     if not isinstance(payload, dict):
         return False
     choices = payload.get("choices")
-    if not isinstance(choices, list) or not choices:
+    if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
         return False
-    first = choices[0]
-    if not isinstance(first, dict):
+    message = choices[0].get("message")
+    if not isinstance(message, dict):
         return False
-    if first.get("finish_reason") in {"tool_calls", "function_call"}:
-        return True
-    message = first.get("message")
-    if isinstance(message, dict):
-        if message.get("tool_calls"):
-            return True
-        if message.get("function_call"):
+
+    tool_calls = message.get("tool_calls")
+    if isinstance(tool_calls, list):
+        for call in tool_calls:
+            if not isinstance(call, dict) or call.get("type") != "function":
+                continue
+            call_id = call.get("id")
+            function = call.get("function")
+            if not isinstance(call_id, str) or not call_id.strip() or not isinstance(function, dict):
+                continue
+            name = function.get("name")
+            if isinstance(name, str) and name.strip() and _valid_tool_arguments(function.get("arguments")):
+                return True
+
+    function_call = message.get("function_call")
+    if isinstance(function_call, dict):
+        name = function_call.get("name")
+        if isinstance(name, str) and name.strip() and _valid_tool_arguments(function_call.get("arguments")):
             return True
     return False
+
+
+def tool_probe_enabled(env: dict[str, str]) -> bool:
+    """Scheduled GitHub runs must verify tool calling; dispatch may opt out."""
+    if env.get("GITHUB_EVENT_NAME", "").strip().lower() == "schedule":
+        return True
+    return env.get("AUTOPILOT_TOOL_PROBE", "1").strip().lower() not in {"0", "false", "no"}
 
 
 def probe_chat(route: CatalogRoute, model: str, api_key: str, timeout: float, post=post_json) -> dict:
@@ -497,7 +528,11 @@ def summary_markdown(status: dict) -> str:
         lines.append(f"- Beste Route: `{best['provider']} / {best['model']}` ({best['latency_ms']} ms)")
         lines.append(f"- Werkzeugroute: {'getestet' if best.get('tools_ok') else 'nicht bestätigt'}")
     else:
-        lines.append("- Beste Route: keine erreichbare Gratis-Route")
+        reachable = [route for route in status.get("routes", []) if route.get("chat_ok")]
+        if status.get("tool_probe") and reachable:
+            lines.append("- Beste Route: keine bestätigte Werkzeugroute (Chat antwortet, Tool-Calling nicht bestätigt)")
+        else:
+            lines.append("- Beste Route: keine erreichbare Gratis-Route")
     reachable = [route for route in status.get("routes", []) if route.get("chat_ok")]
     tool_ready = [route for route in reachable if route.get("tools_ok")]
     lines.append(f"- Antwortende Routen: {len(reachable)} von {len(status.get('routes', []))}")
@@ -544,7 +579,8 @@ def run(
 
     max_per_provider = int(env.get("AUTOPILOT_MAX_PER_PROVIDER", 5) or 5)
     max_routes = int(env.get("AUTOPILOT_MAX_ROUTES", DEFAULT_MAX_ROUTES) or DEFAULT_MAX_ROUTES)
-    tool_probe = env.get("AUTOPILOT_TOOL_PROBE", "1").strip() not in {"0", "false", "no"}
+    tool_probe = tool_probe_enabled(env)
+    status["tool_probe"] = tool_probe
 
     offline = local_llm_router.offline_requested(env)
     if offline:
@@ -573,7 +609,8 @@ def run(
     ranked = rank_probes(probes)
     status["routes"] = ranked
     reachable = [route for route in ranked if route["chat_ok"]]
-    status["best"] = reachable[0] if reachable else None
+    eligible = [route for route in reachable if not tool_probe or route["tools_ok"]]
+    status["best"] = eligible[0] if eligible else None
     status["duration_s"] = round(time.perf_counter() - started, 1)
     return status
 
@@ -625,9 +662,13 @@ def main(argv: list[str] | None = None, env: dict[str, str] | None = None, **inj
         print("::error::Autopilot hatte weder Routen noch Pakete zum Prüfen.")
         return 6
     if status["routes"] and not status["best"]:
+        reachable = [route for route in status["routes"] if route["chat_ok"]]
+        if reachable and status.get("tool_probe"):
+            print("::error::Chat-Routen antworten, aber keine Route hat einen Werkzeugaufruf bestätigt.")
+            return 7
         print("::error::Keine Modellroute antwortete. Geprüft wurden:")
         for route in status["routes"]:
-            print(f"::error::  {route['provider']}:{route['model']} → HTTP {route['status']}")
+            print("::error::  {}:{} → HTTP {}".format(route["provider"], route["model"], route["status"]))
         return 5
     best = status["best"]
     if best:
