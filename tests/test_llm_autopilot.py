@@ -339,6 +339,46 @@ class RunTests(unittest.TestCase):
         self.assertIsNone(status["best"])
         self.assertTrue(all(not route["chat_ok"] for route in status["routes"]))
 
+
+    def test_schedule_forces_tool_probe_even_when_environment_is_zero(self):
+        route = autopilot.CatalogRoute("cerebras", "https://cerebras.invalid/v1", ("model",))
+        calls: list[dict] = []
+
+        def post(url, payload, api_key, timeout):
+            calls.append(payload)
+            return (200, TOOL_OK if "tools" in payload else CHAT_OK, 42)
+
+        with mock.patch.object(autopilot, "builtin_routes", return_value=[route]), \
+             mock.patch.object(autopilot, "load_katalog", return_value=[]), \
+             mock.patch.object(autopilot, "load_remote_kataloge", return_value=[]):
+            status = autopilot.run(
+                {"GITHUB_EVENT_NAME": "schedule", "AUTOPILOT_TOOL_PROBE": "0"},
+                post=post,
+                fetch_json_fn=self.fake_fetch_json,
+                fetch_text_fn=self.fake_fetch_text,
+            )
+
+        self.assertTrue(status["tool_probe"])
+        self.assertEqual(len(calls), 2)
+        self.assertTrue(status["best"]["tools_ok"])
+
+    def test_chat_only_route_is_not_marked_best_when_tool_probe_is_enabled(self):
+        route = autopilot.CatalogRoute("cerebras", "https://cerebras.invalid/v1", ("model",))
+
+        with mock.patch.object(autopilot, "builtin_routes", return_value=[route]), \
+             mock.patch.object(autopilot, "load_katalog", return_value=[]), \
+             mock.patch.object(autopilot, "load_remote_kataloge", return_value=[]):
+            status = autopilot.run(
+                {"AUTOPILOT_TOOL_PROBE": "1"},
+                post=lambda url, payload, api_key, timeout: (200, CHAT_OK, 42),
+                fetch_json_fn=self.fake_fetch_json,
+                fetch_text_fn=self.fake_fetch_text,
+            )
+
+        self.assertTrue(status["routes"][0]["chat_ok"])
+        self.assertFalse(status["routes"][0]["tools_ok"])
+        self.assertIsNone(status["best"])
+
     def test_packs_only_mode_skips_probing(self):
         calls: list[str] = []
 
@@ -401,6 +441,24 @@ class MainTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(status["best"]["provider"], "pollinations")
         self.assertIn("LLM-Autopilot", summary)
+
+
+    def test_exit_7_when_chat_answers_but_no_tool_route(self):
+        route = autopilot.CatalogRoute("cerebras", "https://cerebras.invalid/v1", ("model",))
+        with mock.patch.object(autopilot, "builtin_routes", return_value=[route]), \
+             mock.patch.object(autopilot, "load_katalog", return_value=[]), \
+             mock.patch.object(autopilot, "load_remote_kataloge", return_value=[]):
+            code, status, summary = self.run_main(
+                ["--summary"],
+                {"AUTOPILOT_TOOL_PROBE": "1"},
+                post=lambda url, payload, api_key, timeout: (200, CHAT_OK, 42),
+                fetch_json_fn=lambda url, timeout=5, token="": {"packs": []},
+                fetch_text_fn=lambda url, timeout=5, token="": "",
+            )
+
+        self.assertEqual(code, 7)
+        self.assertIsNone(status["best"])
+        self.assertIn("keine bestätigte Werkzeugroute", summary)
 
     def test_exit_5_when_nothing_answers(self):
         with mock.patch.object(autopilot.hunter, "discover_openrouter", lambda timeout, env: []):
