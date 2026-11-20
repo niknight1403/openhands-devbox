@@ -404,7 +404,9 @@ class RunTests(unittest.TestCase):
     def test_chat_only_route_is_not_marked_best_when_tool_probe_is_enabled(self):
         route = autopilot.CatalogRoute("cerebras", "https://cerebras.invalid/v1", ("model",))
 
-        with mock.patch.object(autopilot, "builtin_routes", return_value=[route]), mock.patch.object(autopilot, "load_katalog", return_value=[]), mock.patch.object(autopilot, "load_remote_kataloge", return_value=[]):
+        with mock.patch.object(autopilot, "builtin_routes", return_value=[route]), \
+             mock.patch.object(autopilot, "load_katalog", return_value=[]), \
+             mock.patch.object(autopilot, "load_remote_kataloge", return_value=[]):
             status = autopilot.run(
                 {"AUTOPILOT_TOOL_PROBE": "1"},
                 post=lambda url, payload, api_key, timeout: (200, CHAT_OK, 42),
@@ -481,7 +483,9 @@ class MainTests(unittest.TestCase):
 
     def test_exit_7_when_chat_answers_but_no_tool_route(self):
         route = autopilot.CatalogRoute("cerebras", "https://cerebras.invalid/v1", ("model",))
-        with mock.patch.object(autopilot, "builtin_routes", return_value=[route]), mock.patch.object(autopilot, "load_katalog", return_value=[]), mock.patch.object(autopilot, "load_remote_kataloge", return_value=[]):
+        with mock.patch.object(autopilot, "builtin_routes", return_value=[route]), \
+             mock.patch.object(autopilot, "load_katalog", return_value=[]), \
+             mock.patch.object(autopilot, "load_remote_kataloge", return_value=[]):
             code, status, summary = self.run_main(
                 ["--summary"],
                 {"AUTOPILOT_TOOL_PROBE": "1"},
