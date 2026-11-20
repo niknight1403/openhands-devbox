@@ -28,7 +28,18 @@ def post_factory(answers: dict[tuple[str, str], tuple[int, object]]):
 
 
 CHAT_OK = {"choices": [{"message": {"content": "pong"}, "finish_reason": "stop"}]}
-TOOL_OK = {"choices": [{"message": {"tool_calls": [{"id": "1", "type": "function", "function": {"name": "route_probe", "arguments": '{"stadt": "Berlin"}'}}]}, "finish_reason": "tool_calls"}]}
+TOOL_OK = {
+    "choices": [{
+        "message": {
+            "tool_calls": [{
+                "id": "1",
+                "type": "function",
+                "function": {"name": "route_probe", "arguments": '{"stadt": "Berlin"}'},
+            }]
+        },
+        "finish_reason": "tool_calls",
+    }]
+}
 TOOL_TEXT_ONLY = {"choices": [{"message": {"content": "Berlin"}, "finish_reason": "stop"}]}
 
 
@@ -376,7 +387,9 @@ class RunTests(unittest.TestCase):
             calls.append(payload)
             return (200, TOOL_OK if "tools" in payload else CHAT_OK, 42)
 
-        with mock.patch.object(autopilot, "builtin_routes", return_value=[route]), mock.patch.object(autopilot, "load_katalog", return_value=[]), mock.patch.object(autopilot, "load_remote_kataloge", return_value=[]):
+        with mock.patch.object(autopilot, "builtin_routes", return_value=[route]), \
+             mock.patch.object(autopilot, "load_katalog", return_value=[]), \
+             mock.patch.object(autopilot, "load_remote_kataloge", return_value=[]):
             status = autopilot.run(
                 {"GITHUB_EVENT_NAME": "schedule", "AUTOPILOT_TOOL_PROBE": "0"},
                 post=post,
