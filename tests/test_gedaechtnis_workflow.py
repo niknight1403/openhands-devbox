@@ -38,6 +38,11 @@ class WorkflowVerdrahtungTest(unittest.TestCase):
         self.assertIn("assets", eingaben["workflow_dispatch"]["inputs"])
         self.assertIn("assets", eingaben["workflow_call"]["inputs"])
 
+    def test_lokale_packs_werden_ohne_ueberschreiben_installiert(self):
+        schritt = next(s for s in self.schritte if s.get("name") == "Skills-Pack in das Zielprojekt übernehmen")
+        self.assertIn("werkzeug_packs.py", schritt["run"])
+        self.assertIn("--skip-existing", schritt["run"])
+
     def test_gedaechtnis_wird_geladen_und_geschrieben(self):
         namen = [s.get("name", "") for s in self.schritte]
         self.assertTrue(any(n == "Projektgedächtnis und Dateien laden" for n in namen))

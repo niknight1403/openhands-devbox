@@ -319,8 +319,10 @@ jobs:
 
       - name: Skills-Pack in das Zielprojekt übernehmen
         run: |
-          mkdir -p workspace/.agents/skills
-          cp -a control/.agents/skills/. workspace/.agents/skills/
+          for pack in entwicklung qualitaet oberflaeche integrationen; do
+            python3 control/scripts/werkzeug_packs.py \
+              --pack "$pack" --target workspace --skip-existing
+          done
 
       - name: Plugin-Packs laut Autopilot-Konfiguration übernehmen
         continue-on-error: true

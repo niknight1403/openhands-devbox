@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -445,7 +446,9 @@ def process_pack(
         report["reason"] = "unerwartete Antwort der Verzeichnisliste"
         return report
 
-    directories = [str(entry.get("name")) for entry in listing if isinstance(entry, dict) and entry.get("type") == "dir"]
+    directories = [str(entry.get("name")) for entry in listing if isinstance(entry, dict)
+                   and entry.get("type") == "dir" and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", str(entry.get("name", "")))
+                   and str(entry.get("name")) not in {".", ".."}]
     wanted = [name for name in directories if not pack["select"] or name in pack["select"]]
     if not wanted:
         report["reason"] = "keine passenden Skill-Verzeichnisse"
@@ -463,9 +466,16 @@ def process_pack(
         report["skills"].append({"name": skill, "ok": valid, "reason": reason})
         if valid and pack["mode"] == "install" and install_dir:
             target = Path(install_dir) / skill
-            target.mkdir(parents=True, exist_ok=True)
-            (target / "SKILL.md").write_text(text, encoding="utf-8")
-            installed += 1
+            if target.exists() or target.is_symlink():
+                report["skills"][-1]["reason"] = "im Ziel bereits vorhanden, nicht überschrieben"
+                continue
+            try:
+                target.mkdir(parents=True, exist_ok=False)
+                (target / "SKILL.md").write_text(text, encoding="utf-8")
+                installed += 1
+            except OSError as error:
+                report["skills"][-1]["ok"] = False
+                report["skills"][-1]["reason"] = f"Installation fehlgeschlagen: {error.strerror}"
 
     valid_skills = [skill for skill in report["skills"] if skill["ok"]]
     report["ok"] = bool(valid_skills)

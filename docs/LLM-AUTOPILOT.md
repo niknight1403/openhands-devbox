@@ -80,6 +80,24 @@ Behauptung im README.
 
 ## Plugin-Packs
 
+Die sechs mit der Devbox versionierten Entwickler-Skills sind zusätzlich als
+lokale Werkzeug-Packs ohne Netzwerk oder API-Schlüssel verfügbar:
+
+```bash
+python3 scripts/werkzeug_packs.py --list
+python3 scripts/werkzeug_packs.py --pack qualitaet --target /pfad/zum/projekt
+```
+
+`entwicklung`, `qualitaet`, `oberflaeche` und `integrationen` kopieren jeweils
+die vollständigen Skills nach `.agents/skills/` im Zielprojekt. Vorhandene
+Skills werden nicht überschrieben; ein Fehler wird klar gemeldet. Im Agentenlauf
+werden die vier Packs mit `--skip-existing` übernommen, sodass eigene Skills
+des Zielprojekts Vorrang haben. Das Pack
+`qualitaet` enthält Qualitätsprüfung und Sicherheit. Nach der Installation
+prüfe das Ergebnis im Zielprojekt mit dessen vorhandenen Tests und Builds.
+
+Externe Plugin-Packs bleiben getrennt davon und werden standardmäßig nur validiert.
+
 `config/plugin-packs.json` beschreibt Packs im AgentSkills-Format:
 
 ```json

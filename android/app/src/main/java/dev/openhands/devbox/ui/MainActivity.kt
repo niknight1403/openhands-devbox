@@ -44,7 +44,10 @@ private fun DevboxApp(viewModel: ChatViewModel = viewModel()) {
         AppScreen.Projects -> ProjectHubScreen(
             selectedProject = viewModel.settings.project,
             model = viewModel.settings.model,
-            onSelectProject = { slug -> viewModel.updateSettings(viewModel.settings.copy(project = slug)) },
+            onSelectProject = { slug ->
+                viewModel.updateSettings(viewModel.settings.copy(project = slug))
+                screen = AppScreen.Chat
+            },
             onOpenLiveApp = { screen = AppScreen.LiveApp },
             onBack = { screen = AppScreen.Chat },
         )
@@ -65,7 +68,7 @@ private fun DevboxApp(viewModel: ChatViewModel = viewModel()) {
             attachments = viewModel.anhaengsel,
             onAttach = viewModel::addAttachment,
             onRemoveAttachment = viewModel::removeAttachment,
-            onSend = viewModel::sendTask,
+            onSend = { text -> viewModel.sendTask(text) },
             onStop = viewModel::stop,
             onOpenSettings = { screen = AppScreen.Settings },
             onOpenProjects = { screen = AppScreen.Projects },

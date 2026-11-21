@@ -12,6 +12,7 @@ import androidx.lifecycle.viewModelScope
 import dev.openhands.devbox.data.AutonomyEngine
 import dev.openhands.devbox.data.GitHubApi
 import dev.openhands.devbox.data.Projects
+import dev.openhands.devbox.data.ProjectAnalysis
 import dev.openhands.devbox.data.Settings
 import dev.openhands.devbox.data.SettingsStore
 import kotlinx.coroutines.CancellationException
@@ -65,6 +66,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private class AttachmentTooLargeException : Exception()
 
     private var activeJob: Job? = null
+    private var pendingAnalysisTarget: String? = null
     private var counter = 0L
     private var lastFailed = false
 
@@ -80,6 +82,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateSettings(next: Settings) {
+        val previousProject = settings.project
+        val previousTarget = Projects.findBySlug(settings.project)?.targetShort ?: settings.targetRepo
+        val nextTarget = Projects.findBySlug(next.project)?.targetShort ?: next.targetRepo
         store.save(next)
         settings = next
         val projekt = Projects.findBySlug(next.project)
@@ -91,6 +96,16 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 "Einstellungen gespeichert. Zielprojekt: ${next.targetRepo}."
             },
         )
+        if (previousTarget != nextTarget || previousProject != next.project) {
+            if (busy) {
+                pendingAnalysisTarget = nextTarget
+                push(false, "Projekt gewählt. Die Analyse startet nach dem laufenden Auftrag.")
+            } else if (next.isValid()) {
+                sendTask(ProjectAnalysis.task, analysis = true)
+            } else {
+                push(false, "Projekt gewählt. Automatische Analyse benötigt gültige GitHub-Einstellungen.", isError = true)
+            }
+        }
     }
 
     fun testConnection() {
@@ -107,7 +122,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun sendTask(text: String) {
+    fun sendTask(text: String, analysis: Boolean = false) {
         val task = text.trim()
         if (task.isEmpty() || busy) return
         if (!settings.isValid()) {
@@ -119,11 +134,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         lastFailed = false
         statusText = "Auftrag wird übergeben"
 
-        val iterations = if (settings.autoIterate) settings.maxIterations.coerceIn(1, 3) else 1
+        val requestSettings = if (analysis) settings.copy(autoMerge = false, autoIterate = false) else settings
+        val iterations = if (requestSettings.autoIterate) requestSettings.maxIterations.coerceIn(1, 3) else 1
 
         activeJob = viewModelScope.launch {
             try {
-                val dateien = ladeAnhaengselHoch()
+                val dateien = if (analysis) emptyList() else ladeAnhaengselHoch()
                 for (iteration in 1..iterations) {
                     val prompt = if (iteration == 1) {
                         task
@@ -131,7 +147,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                         "Folgedurchlauf $iteration für ${settings.targetRepo}: Prüfe das Ergebnis des vorherigen Laufs gegen die ursprüngliche Aufgabe \"$task\". " +
                             "Schließe bestätigte Lücken, behebe Fehler und vervollständige fehlende Bedien- oder Fehlerzustände. Halte die Änderungen klein und prüfbar."
                     }
-                    engine.execute(AutonomyEngine.Request(settings, prompt, iteration, iterations, assets = dateien)) { event ->
+                    engine.execute(AutonomyEngine.Request(requestSettings, prompt, iteration, iterations, assets = dateien)) { event ->
                         handle(event)
                     }
                     if (lastFailed) break
@@ -145,6 +161,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 busy = false
                 statusText = "Bereit"
                 activeJob = null
+                val pending = pendingAnalysisTarget
+                pendingAnalysisTarget = null
+                if (pending != null && settings.isValid()) {
+                    sendTask(ProjectAnalysis.task, analysis = true)
+                }
             }
         }
     }

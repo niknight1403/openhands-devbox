@@ -298,6 +298,19 @@ class PackTests(unittest.TestCase):
             self.assertTrue(report["ok"])
             self.assertEqual(report["installed"], 1)
             self.assertTrue(os.path.isfile(os.path.join(folder, "frontend", "SKILL.md")))
+            report = autopilot.process_pack(pack, fetch_json, fetch_text, install_dir=folder)
+            self.assertEqual(report["installed"], 0)
+            self.assertIn("nicht überschrieben", report["skills"][0]["reason"])
+
+    def test_remote_skill_name_cannot_escape_target(self):
+        fetch_json, fetch_text = self._fake_fetchers(
+            [{"type": "dir", "name": ".."}], {"..": "---\nname: x\ndescription: x\n---\n"},
+        )
+        pack = {"name": "p", "repo": "o/r", "ref": "main", "path": "skills", "mode": "install", "select": []}
+        with tempfile.TemporaryDirectory() as folder:
+            report = autopilot.process_pack(pack, fetch_json, fetch_text, install_dir=folder)
+            self.assertFalse(report["ok"])
+            self.assertEqual(os.listdir(folder), [])
 
     def test_unlistable_pack_is_reported(self):
         def broken(url, timeout=5, token=""):
