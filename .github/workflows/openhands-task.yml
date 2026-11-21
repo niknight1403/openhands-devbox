@@ -43,6 +43,7 @@ on:
           - CyberSarah-Control-Center
           - Agentforge2
           - AGI-Agenten
+          - Vision
       client_run:
         description: "Kurz-ID der Android-App für Branch und PR-Zuordnung (leer = Zeitstempel)"
         required: false

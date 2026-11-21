@@ -7,3 +7,4 @@ LaunchpadControl
 CyberSarah-Control-Center
 Agentforge2
 AGI-Agenten
+Vision

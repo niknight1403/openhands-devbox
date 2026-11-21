@@ -19,6 +19,12 @@ object Projects {
      */
     val alle: List<ProjectChoice> = listOf(
         ProjectChoice(
+            slug = "vision",
+            targetShort = "Vision",
+            label = "Vision",
+            description = "Vision-Analyse, Spezialisten und mobile App gezielt weiterentwickeln.",
+        ),
+        ProjectChoice(
             slug = "cybersarah-control-center",
             targetShort = "CyberSarah-Control-Center",
             label = "CyberSarah Control Center",
