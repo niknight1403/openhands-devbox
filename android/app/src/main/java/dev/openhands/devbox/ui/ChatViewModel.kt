@@ -129,12 +129,16 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             push(false, "Bitte zuerst die Einstellungen ausfüllen: Token und Zielprojekt.", isError = true)
             return
         }
-        push(true, task)
+        push(true, if (analysis) "Projektanalyse starten: Befunde prüfen, Verbesserungen priorisieren und eine kleine Optimierung umsetzen." else task)
         busy = true
         lastFailed = false
         statusText = "Auftrag wird übergeben"
 
-        val requestSettings = if (analysis) settings.copy(autoMerge = false, autoIterate = false) else settings
+        val requestSettings = if (analysis) {
+            settings.copy(profile = "superagent", autoMerge = false, autoIterate = false)
+        } else {
+            settings
+        }
         val iterations = if (requestSettings.autoIterate) requestSettings.maxIterations.coerceIn(1, 3) else 1
 
         activeJob = viewModelScope.launch {

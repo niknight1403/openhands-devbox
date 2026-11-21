@@ -53,7 +53,7 @@ fun ProjectHubScreen(
         ) {
             Text("Verschiedene Projekte", style = MaterialTheme.typography.headlineSmall)
             Text(
-                "Wähle ein freigegebenes Projekt. Zielrepository und Projektauftrag werden automatisch an den OpenHands-Lauf übergeben.",
+                "Wähle ein freigegebenes Projekt. Mit gültigem GitHub-Zugang startet beim Wechsel eine Analyse mit Verbesserungsvorschlägen und höchstens einer kleinen Optimierung. Den Lauf siehst du im Chat.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
