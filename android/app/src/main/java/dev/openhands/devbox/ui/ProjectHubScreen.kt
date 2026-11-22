@@ -60,6 +60,27 @@ fun ProjectHubScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text("Verschiedene Projekte", style = MaterialTheme.typography.headlineSmall)
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Agenten-Crew", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Die Crew nutzt die tatsächlich konfigurierten GitHub-Action-Profile. Superagent führt drei getrennte Sitzungen nacheinander aus; die spezialisierten Profile starten jeweils eine eigene Sitzung.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    AgentRoleRow("ARCHITEKT", "Analysiert Repository, Risiken und Prüfplan.")
+                    AgentRoleRow("IMPLEMENTIERER", "Setzt den begrenzten Plan im Projekt um.")
+                    AgentRoleRow("REVIEWER", "Prüft Diff, Sicherheit und Regressionen.")
+                    AgentRoleRow("FRONTEND", "Spezialisierter UI-/UX-Durchlauf.")
+                    AgentRoleRow("SECURITY", "Prüft Authentifizierung, Eingaben und Secrets.")
+                    AgentRoleRow("QUALITY", "Führt passende Tests, Lint und Builds aus.")
+                    Text(
+                        "Hinweis: Rollenprofile sind keine parallel laufenden Agenten. Live-Status erscheint erst, wenn GitHub Actions einen echten Lauf meldet.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                    )
+                }
+            }
             Text(
                 "Wähle ein freigegebenes Projekt. Mit gültigem GitHub-Zugang startet beim Wechsel eine Analyse mit Verbesserungsvorschlägen und höchstens einer kleinen Optimierung. Den Lauf siehst du im Chat.",
                 style = MaterialTheme.typography.bodyMedium,
@@ -150,5 +171,13 @@ private fun ProjectCard(project: ProjectChoice, selected: Boolean, onClick: () -
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+}
+
+@Composable
+private fun AgentRoleRow(role: String, description: String) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(role, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+        Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
     }
 }
