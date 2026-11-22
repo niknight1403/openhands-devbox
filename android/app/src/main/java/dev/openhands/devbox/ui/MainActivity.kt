@@ -63,6 +63,9 @@ private fun DevboxApp(viewModel: ChatViewModel = viewModel()) {
             projectMemory = viewModel.projectMemory,
             projectMemoryStatus = viewModel.projectMemoryStatus,
             onRefreshMemory = viewModel::loadProjectMemory,
+            routeStatus = viewModel.routeStatus,
+            routeDetails = viewModel.routeDetails,
+            onRefreshRoutes = viewModel::loadRouteStatus,
             onBack = { screen = AppScreen.Dashboard },
         )
         AppScreen.LiveApp -> LivePreviewScreen(
