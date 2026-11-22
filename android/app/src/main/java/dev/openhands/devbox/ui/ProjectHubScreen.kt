@@ -19,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.openhands.devbox.data.ProjectChoice
@@ -31,9 +32,13 @@ fun ProjectHubScreen(
     model: String,
     onSelectProject: (String) -> Unit,
     onOpenLiveApp: () -> Unit,
+    projectMemory: String,
+    projectMemoryStatus: String,
+    onRefreshMemory: () -> Unit,
     onBack: () -> Unit,
 ) {
     val selected = Projects.findBySlug(selectedProject)
+    LaunchedEffect(selectedProject) { onRefreshMemory() }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -63,6 +68,32 @@ fun ProjectHubScreen(
                     selected = project.slug == selectedProject,
                     onClick = { onSelectProject(project.slug) },
                 )
+            }
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Projektgedächtnis", style = MaterialTheme.typography.titleMedium)
+                        TextButton(onClick = onRefreshMemory, enabled = selectedProject.isNotBlank()) { Text("Aktualisieren") }
+                    }
+                    Text(
+                        projectMemoryStatus,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (projectMemory.isNotBlank()) {
+                        Text(
+                            projectMemory,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    } else {
+                        Text(
+                            "Hier erscheinen dokumentierte Läufe, Entscheidungen, Befunde, Wiederholungswarnungen und offene Punkte aus projects/$selectedProject/GEDAEHNTNIS.md.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
