@@ -68,40 +68,71 @@ fun ProjectHubScreen(
                     }
                 }
             }
+
             SectionHeading("PROJEKTÜBERSICHT", "Freigegebene Entwicklungsziele")
             Projects.alle.forEach { project ->
                 ProjectCard(project, project.slug == selectedProject) { onSelectProject(project.slug) }
             }
-            SectionHeading("ROUTING & AGENTEN", "Echte Laufzeitprüfungen statt grüner Demo-Status")
+
+            SectionHeading("ROUTING & AGENTEN", "Live-Ergebnisse werden pro Actions-Lauf nachgewiesen")
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Free Route Hunter", style = MaterialTheme.typography.titleMedium)
-                        FilterChip(selected = model.isBlank(), onClick = {}, enabled = false,
-                            label = { Text(if (model.isBlank()) "Auto-Routing" else "Modell fixiert") })
+                        FilterChip(selected = false, onClick = {}, enabled = false,
+                            label = { Text("Prüfung je Lauf") })
                     }
                     Text(
-                        if (model.isBlank()) "Vor jedem Agentenlauf werden verfügbare kostenlose Routen gesucht. Eine Route zählt erst nach erfolgreichem Tool-Call als einsatzbereit."
-                        else "Manuelles Modell: $model. Für automatische kostenlose Routensuche das Modellfeld in den Einstellungen leeren.",
+                        if (model.isBlank())
+                            "Automatische kostenlose Routensuche ist konfiguriert. Ob eine Route aktuell nutzbar ist, wird erst im jeweiligen Actions-Lauf durch einen echten Aufruf bestätigt."
+                        else
+                            "Manuelles Modell: $model. Die Verfügbarkeit wird im jeweiligen Actions-Lauf geprüft; eine gespeicherte Modell-ID ist kein Gesundheitsnachweis.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("Superagent-Team", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-                    Text("Architekt → Implementierer → Qualitätsprüfer. Drei getrennte Phasen mit gemeinsamem Projektkontext.",
+                    Text("Architekt → Implementierer → Qualitätsprüfer. Drei getrennte, aufeinander aufbauende Phasen mit gemeinsamem Workspace.",
                         style = MaterialTheme.typography.bodySmall)
                 }
             }
-            SectionHeading("WERKZEUG- & ENTWICKLER-PACKS", "Die vorhandenen Packs werden beim Lauf eingebunden")
-            CapabilityCard("Entwicklung", "Autonome Entwicklung und sicheres Refactoring", "2 Skills", "Implementierung")
-            CapabilityCard("Qualität & Sicherheit", "Tests, Qualitäts-Gates und Security-Prüfungen", "2 Skills", "Prüfung")
-            CapabilityCard("Frontend & UX", "Responsive Oberflächen und UX-Verbesserungen", "1 Skill", "Design")
-            CapabilityCard("Integrationen", "MCP- und Connector-Integrationen", "1 Skill", "Tools")
-            CapabilityCard("Plugin-Packs", "Konfigurierbare AgentSkills-Pakete; externe Skills zunächst nur validieren", "Konfiguriert", "Validierung")
+
+            SectionHeading("WERKZEUG- & ENTWICKLER-PACKS", "Sechs lokale Skills in vier kuratierten Packs")
+            CapabilityCard(
+                "Entwicklung",
+                "Autonome Entwicklung und Refactoring",
+                "2 Skills",
+                "autonomous-development · automated-refactoring",
+            )
+            CapabilityCard(
+                "Qualität & Sicherheit",
+                "Regressionstests, Prüfungen und sichere Änderungen",
+                "2 Skills",
+                "quality-engineering · security",
+            )
+            CapabilityCard(
+                "Frontend & UX",
+                "Responsive Oberflächen und UX-Verbesserungen",
+                "1 Skill",
+                "frontend-ux",
+            )
+            CapabilityCard(
+                "Integrationen",
+                "MCP- und Connector-Integrationen",
+                "1 Skill",
+                "integrations",
+            )
+            CapabilityCard(
+                "Externe Plugin-Packs",
+                "Anthropic Skills: frontend-design und docx",
+                "Validate-Modus",
+                "Wird geprüft, nicht automatisch installiert",
+            )
+
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Projektgedächtnis", style = MaterialTheme.typography.titleMedium)
-                    Text("Frühere Läufe, Entscheidungen, Befunde, Fehlversuche und offene Punkte werden projektbezogen geladen und nach dem Lauf fortgeschrieben.",
+                    Text("Der Workflow lädt frühere Entscheidungen, Befunde und offene Punkte aus projects/<projekt>/GEDAECHTNIS.md und schreibt nach dem Lauf einen nachvollziehbaren Eintrag zurück.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("Quelle: projects/<projekt>/GEDAEHNTNIS.md", style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary)
+                    Text("Quelle: projects/<projekt>/GEDAECHTNIS.md",
+                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                 }
             }
             if (selected != null) Button(onClick = onOpenLiveApp, modifier = Modifier.fillMaxWidth()) {
@@ -120,16 +151,16 @@ private fun SectionHeading(title: String, subtitle: String) {
 }
 
 @Composable
-private fun CapabilityCard(title: String, description: String, count: String, type: String) {
+private fun CapabilityCard(title: String, description: String, count: String, detail: String) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(title, style = MaterialTheme.typography.titleSmall)
                 Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(detail, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(count, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                Text(type, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
