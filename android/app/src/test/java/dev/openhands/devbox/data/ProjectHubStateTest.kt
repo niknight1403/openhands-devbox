@@ -54,6 +54,7 @@ class ProjectHubStateTest {
         assertEquals(knownSlug, project?.slug)
         assertEquals("CyberSarah-Control-Center", project?.targetShort)
         assertNull(Projects.findBySlug("andere-projekt"))
-        assertEquals(1, Projects.alle.size)
+        assertTrue(Projects.alle.any { it.slug == "vision" })
+        assertTrue(Projects.alle.any { it.slug == knownSlug })
     }
 }
