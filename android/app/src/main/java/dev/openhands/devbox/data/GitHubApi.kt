@@ -151,6 +151,13 @@ class GitHubApi(private val tokenProvider: () -> String) {
             ?.first
     }
 
+    /** Liefert die neuesten echten Actions-Läufe des Steuer-Repositories. */
+    suspend fun recentRuns(controlRepo: String, limit: Int = 8): List<WorkflowRun> =
+        json.decodeFromString(
+            WorkflowRunsResponse.serializer(),
+            call(request("/repos/$controlRepo/actions/runs?per_page=${limit.coerceIn(1, 20)}")),
+        ).workflowRuns
+
     suspend fun run(controlRepo: String, runId: Long): WorkflowRun =
         json.decodeFromString(WorkflowRun.serializer(), call(request("/repos/$controlRepo/actions/runs/$runId")))
 
