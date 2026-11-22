@@ -78,6 +78,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     var workflowRunsStatus by mutableStateOf("Noch nicht geladen")
         private set
 
+    var recentWorkflowJobs by mutableStateOf<List<dev.openhands.devbox.data.Job>>(emptyList())
+        private set
+
+    var workflowJobsStatus by mutableStateOf("")
+        private set
+
 
     private val maxAnhangBytes = 20 * 1024 * 1024
     private val maxAnhaengsel = 5
@@ -137,15 +143,25 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         workflowRunsStatus = "GitHub-Actions-Läufe werden geladen ..."
         viewModelScope.launch {
             try {
-                recentWorkflowRuns = GitHubApi { settings.token }
-                    .recentRuns(settings.controlRepoFullName, 8)
+                val api = GitHubApi { settings.token }
+                recentWorkflowRuns = api.recentRuns(settings.controlRepoFullName, 8)
+                recentWorkflowJobs = recentWorkflowRuns.take(3).flatMap { run ->
+                    runCatching { api.runJobs(settings.controlRepoFullName, run.id) }.getOrDefault(emptyList())
+                }
                 workflowRunsStatus = if (recentWorkflowRuns.isEmpty()) {
                     "GitHub meldet keine Actions-Läufe."
                 } else {
                     "${recentWorkflowRuns.size} aktuelle Läufe aus ${settings.controlRepoFullName}"
                 }
+                workflowJobsStatus = if (recentWorkflowJobs.isEmpty()) {
+                    "Für die letzten Läufe sind keine Jobdetails verfügbar."
+                } else {
+                    "${recentWorkflowJobs.size} Jobdetails aus den drei neuesten Läufen"
+                }
             } catch (error: Exception) {
                 recentWorkflowRuns = emptyList()
+                recentWorkflowJobs = emptyList()
+                workflowJobsStatus = ""
                 workflowRunsStatus = "Actions nicht verfügbar: ${error.message ?: "unbekannter Fehler"}"
             }
         }
