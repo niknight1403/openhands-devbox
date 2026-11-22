@@ -4,8 +4,8 @@ import ipaddress
 import sys
 import unittest
 from pathlib import Path
-from urllib.request import Request
 from unittest.mock import patch
+from urllib.request import Request
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
@@ -46,9 +46,9 @@ class NetzwerksicherheitTest(unittest.TestCase):
             netzwerk.pruefe_url("https://example.org:invalid/")
 
     def test_host_ohne_dns_adresse_wird_abgelehnt(self):
-        with patch.object(netzwerk, "_adressen", return_value=[]):
-            with self.assertRaises(netzwerk.NetzFehler):
-                netzwerk.pruefe_url("https://example.org/")
+        with (patch.object(netzwerk, "_adressen", return_value=[]),
+              self.assertRaises(netzwerk.NetzFehler)):
+            netzwerk.pruefe_url("https://example.org/")
 
     def test_alle_dns_adressen_muessen_oeffentlich_sein(self):
         with patch.object(
@@ -58,9 +58,8 @@ class NetzwerksicherheitTest(unittest.TestCase):
                 ipaddress.ip_address("93.184.216.34"),
                 ipaddress.ip_address("10.0.0.8"),
             ],
-        ):
-            with self.assertRaises(netzwerk.NetzFehler):
-                netzwerk.pruefe_url("https://example.org/")
+        ), self.assertRaises(netzwerk.NetzFehler):
+            netzwerk.pruefe_url("https://example.org/")
 
 
 if __name__ == "__main__":
