@@ -69,6 +69,7 @@ fun ChatScreen(
     onOpenSettings: () -> Unit,
     onOpenProjects: () -> Unit,
     onOpenLiveApp: () -> Unit,
+    onOpenDashboard: () -> Unit,
     onMerge: (Int) -> Unit,
 ) {
     var draft by remember { mutableStateOf("") }
@@ -98,6 +99,7 @@ fun ChatScreen(
                     }
                 },
                 actions = {
+                    TextButton(onClick = onOpenDashboard) { Text("Zentrale") }
                     TextButton(onClick = onOpenProjects) { Text("Projekte") }
                     TextButton(onClick = onOpenLiveApp) { Text("Live App") }
                     if (runUrl != null) {
