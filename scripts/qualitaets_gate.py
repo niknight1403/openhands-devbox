@@ -112,11 +112,15 @@ def bericht(wurzel: Path = WURZEL, namen: list[str] | None = None) -> dict:
         liste = alle
     bereit = [w for w in liste if w.verfuegbar()]
     fehlend.extend(w.name for w in liste if w not in bereit)
+    pflicht_fehlend = [w.name for w in liste if w.pflicht and w not in bereit]
     ergebnisse = [_ausfuehren(w, Path(wurzel)) for w in bereit]
     return {
         "werkzeuge": ergebnisse,
-        "sauber": bool(ergebnisse) and all(e["status"] == "sauber" for e in ergebnisse),
+        "sauber": (bool(ergebnisse) and not pflicht_fehlend and
+                   not (namen and fehlend) and
+                   all(e["status"] == "sauber" for e in ergebnisse)),
         "fehlend": fehlend,
+        "pflicht_fehlend": pflicht_fehlend,
         "befunde_gesamt": sum(e.get("anzahl", 0) for e in ergebnisse),
     }
 
@@ -125,6 +129,8 @@ def als_markdown(daten: dict) -> str:
     zeilen = ["## Qualitäts-Gate", ""]
     if not daten["werkzeuge"]:
         zeilen.append("Kein Werkzeug gefunden. Installiere pytest, ruff, bandit, actionlint oder shellcheck.")
+        if daten.get("fehlend"):
+            zeilen.append(f"Nicht installiert: {', '.join(daten['fehlend'])}")
         return "\n".join(zeilen)
     zeilen.append("| Werkzeug | Zweck | Ergebnis | Befunde |")
     zeilen.append("| --- | --- | --- | --- |")
@@ -143,6 +149,8 @@ def als_markdown(daten: dict) -> str:
             zeilen.append("")
     if daten.get("fehlend"):
         zeilen.append(f"Nicht installiert: {', '.join(daten['fehlend'])}")
+    if daten.get("pflicht_fehlend"):
+        zeilen.append(f"Pflichtwerkzeuge fehlen: {', '.join(daten['pflicht_fehlend'])}")
     return "\n".join(zeilen).rstrip()
 
 
