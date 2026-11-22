@@ -72,6 +72,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     var routeDetails by mutableStateOf("")
         private set
 
+    var recentWorkflowRuns by mutableStateOf<List<dev.openhands.devbox.data.WorkflowRun>>(emptyList())
+        private set
+
+    var workflowRunsStatus by mutableStateOf("Noch nicht geladen")
+        private set
+
 
     private val maxAnhangBytes = 20 * 1024 * 1024
     private val maxAnhaengsel = 5
@@ -117,6 +123,30 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 sendTask(ProjectAnalysis.task, analysis = true)
             } else {
                 push(false, "Projekt gewählt. Automatische Analyse benötigt gültige GitHub-Einstellungen.", isError = true)
+            }
+        }
+    }
+
+    /** Lädt echte Actions-Läufe; fehlende Berechtigungen werden als Fehler angezeigt. */
+    fun loadRecentWorkflowRuns() {
+        if (settings.token.isBlank()) {
+            workflowRunsStatus = "GitHub-Token fehlt."
+            recentWorkflowRuns = emptyList()
+            return
+        }
+        workflowRunsStatus = "GitHub-Actions-Läufe werden geladen ..."
+        viewModelScope.launch {
+            try {
+                recentWorkflowRuns = GitHubApi { settings.token }
+                    .recentRuns(settings.controlRepoFullName, 8)
+                workflowRunsStatus = if (recentWorkflowRuns.isEmpty()) {
+                    "GitHub meldet keine Actions-Läufe."
+                } else {
+                    "${recentWorkflowRuns.size} aktuelle Läufe aus ${settings.controlRepoFullName}"
+                }
+            } catch (error: Exception) {
+                recentWorkflowRuns = emptyList()
+                workflowRunsStatus = "Actions nicht verfügbar: ${error.message ?: "unbekannter Fehler"}"
             }
         }
     }
