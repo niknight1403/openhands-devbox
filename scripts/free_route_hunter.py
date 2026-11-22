@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Free Route Hunter — findet automatisch eine kostenlose, erreichbare LLM-Route.
+"""Free Route Hunter — findet automatisch eine kostenlose, toolfähige LLM-Route.
 
 Der Hunter ersetzt fest verdrahtete Modellnamen. Er baut die Kandidatenliste aus
 den tatsächlich hinterlegten Zugangsdaten, sortiert sie nach Eignung für einen
-agentischen Coding-Lauf, prüft jeden Kandidaten mit einem echten Mini-Aufruf
-(max_tokens=1) und schreibt erst die antwortende Route in die Umgebung.
+agentischen Coding-Lauf, prüft jeden Kandidaten mit einem echten Function-Tool-Aufruf
+und schreibt erst eine bestätigte Tool-Route in die Umgebung.
 
 Eigenschaften
 -------------
@@ -409,17 +409,84 @@ def discover_openrouter(timeout: float = DEFAULT_TIMEOUT, env: dict[str, str] | 
 
 @dataclass
 class RouteCheck:
-    """Ergebnis eines echten Mini-Aufrufs."""
+    """Ergebnis des Chat- und Tool-Probes."""
 
     ok: bool
     status: int | str
     latency_ms: int
+    chat_ok: bool | None = None
+    tools_ok: bool | None = None
+
+
+TOOLS_PROBE = [
+    {
+        "type": "function",
+        "function": {
+            "name": "route_probe",
+            "description": "Bestätigt die Unterstützung von Function-Tool-Calls.",
+            "parameters": {
+                "type": "object",
+                "properties": {"city": {"type": "string"}},
+                "required": ["city"],
+                "additionalProperties": False,
+            },
+        },
+    }
+]
+
+
+def _valid_tool_arguments(value: object) -> bool:
+    if not isinstance(value, str) or not value.strip():
+        return False
+    try:
+        parsed = json.loads(value)
+    except (TypeError, ValueError):
+        return False
+    return isinstance(parsed, dict)
+
+
+def has_tool_call(payload: object) -> bool:
+    """Akzeptiert nur vollständige Function-Aufrufe, nie finish_reason allein."""
+    if not isinstance(payload, dict):
+        return False
+    choices = payload.get("choices")
+    if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+        return False
+    message = choices[0].get("message")
+    if not isinstance(message, dict):
+        return False
+
+    tool_calls = message.get("tool_calls")
+    if isinstance(tool_calls, list):
+        for call in tool_calls:
+            if not isinstance(call, dict) or call.get("type") != "function":
+                continue
+            call_id = call.get("id")
+            function = call.get("function")
+            if not isinstance(call_id, str) or not call_id.strip() or not isinstance(function, dict):
+                continue
+            name = function.get("name")
+            if isinstance(name, str) and name.strip() and _valid_tool_arguments(function.get("arguments")):
+                return True
+
+    function_call = message.get("function_call")
+    if isinstance(function_call, dict):
+        name = function_call.get("name")
+        if isinstance(name, str) and name.strip() and _valid_tool_arguments(function_call.get("arguments")):
+            return True
+    return False
 
 
 def ping_route(provider: Provider, model: str, api_key: str, timeout: float = DEFAULT_TIMEOUT) -> RouteCheck:
-    """Echter Mini-Aufruf: nur HTTP 2xx gilt als erreichbare Route."""
+    """Eine Route ist nur bereit, wenn sie einen strukturell gültigen Tool-Call liefert."""
     payload = json.dumps(
-        {"model": model, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1}
+        {
+            "model": model,
+            "messages": [{"role": "user", "content": "Nutze route_probe für Berlin."}],
+            "tools": TOOLS_PROBE,
+            "tool_choice": "auto",
+            "max_tokens": 64,
+        }
     ).encode("utf-8")
     headers = {"Content-Type": "application/json", "User-Agent": USER_AGENT}
     if api_key:
@@ -433,15 +500,21 @@ def ping_route(provider: Provider, model: str, api_key: str, timeout: float = DE
     started = time.perf_counter()
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:  # nosec B310 - Endpunkt stammt aus dem geprueften Routenkatalog (nur https)
-            response.read(256)
+            raw = response.read()
             latency = int((time.perf_counter() - started) * 1000)
-            return RouteCheck(200 <= response.status < 300, response.status, latency)
+            chat_ok = 200 <= response.status < 300
+            try:
+                answer = json.loads(raw.decode("utf-8")) if raw else None
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                answer = None
+            tools_ok = chat_ok and has_tool_call(answer)
+            return RouteCheck(chat_ok and tools_ok, response.status, latency, chat_ok, tools_ok)
     except urllib.error.HTTPError as error:
         latency = int((time.perf_counter() - started) * 1000)
-        return RouteCheck(False, error.code, latency)
+        return RouteCheck(False, error.code, latency, False, False)
     except (urllib.error.URLError, TimeoutError, OSError, ValueError):
         latency = int((time.perf_counter() - started) * 1000)
-        return RouteCheck(False, "error", latency)
+        return RouteCheck(False, "error", latency, False, False)
 
 
 def build_candidates(
@@ -522,6 +595,8 @@ def hunt(
                     "provider": info.provider,
                     "model": info.model,
                     "ok": result.ok,
+                    "chat_ok": result.chat_ok if result.chat_ok is not None else result.ok,
+                    "tools_ok": result.tools_ok if result.tools_ok is not None else result.ok,
                     "status": result.status,
                     "latency_ms": result.latency_ms,
                 }
@@ -696,6 +771,8 @@ def build_report(
                 "model": chosen.model,
                 "litellm_model": chosen.display,
                 "latency_ms": check.latency_ms if check else None,
+                "chat_ok": (check.chat_ok if check.chat_ok is not None else check.ok) if check else False,
+                "tools_ok": (check.tools_ok if check.tools_ok is not None else check.ok) if check else False,
             }
             if chosen
             else None
@@ -719,6 +796,9 @@ def summary_markdown(report: dict) -> str:
         lines.append(f"- Modus: offline, nur lokale Route `{report.get('base_url', '')}`")
     if chosen:
         lines.append(f"- Route: `{chosen['provider']}` / `{chosen['model']}` ({chosen['latency_ms']} ms)")
+        chat_status = "ja" if chosen.get("chat_ok") else "nein"
+        tool_status = "ja" if chosen.get("tools_ok") else "nein"
+        lines.append(f"- Chat erreichbar: {chat_status}; Tool-Call bestätigt: {tool_status}")
     else:
         lines.append("- Route: keine erreichbare Gratis-Route")
     lines.append(f"- Geprüfte Kandidaten: {len(checked)}")
@@ -833,7 +913,10 @@ def main(argv: list[str] | None = None, env: dict[str, str] | None = None, disco
         # nosec B604 - write_env ist eine eigene Funktion, kein Shell-Aufruf
         shell=args.shell_export,
     )
-    print(f"::notice::Gratis-Route bereit: {chosen.label} (HTTP {check.status}, {check.latency_ms} ms)")
+    print(
+        f"::notice::Gratis-Tool-Route bereit: {chosen.label} "
+        f"(Tool-Call bestätigt, HTTP {check.status}, {check.latency_ms} ms)"
+    )
     return 0
 
 
