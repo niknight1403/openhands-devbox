@@ -81,6 +81,25 @@ fun ProjectHubScreen(
                     )
                 }
             }
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Text("Werkzeug- & Entwickler-Packs", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Kuratierte lokale Agent-Skills aus .agents/skills. Die App zeigt den versionierten Katalog; Installation und Kopieren erfolgen weiterhin über den geprüften CLI-Installer.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    ToolPackRow("ENTWICKLUNG", "Autonomous Development · Automated Refactoring")
+                    ToolPackRow("QUALITÄT", "Quality Engineering · Security")
+                    ToolPackRow("OBERFLÄCHE", "Frontend UX")
+                    ToolPackRow("INTEGRATIONEN", "Integrations")
+                    Text(
+                        "Installationsschutz: nur vorhandene Skills mit SKILL.md; Symlinks und Überschreiben werden abgewiesen. Kein automatischer Installationslauf aus dieser Ansicht.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                    )
+                }
+            }
             Text(
                 "Wähle ein freigegebenes Projekt. Mit gültigem GitHub-Zugang startet beim Wechsel eine Analyse mit Verbesserungsvorschlägen und höchstens einer kleinen Optimierung. Den Lauf siehst du im Chat.",
                 style = MaterialTheme.typography.bodyMedium,
@@ -179,5 +198,13 @@ private fun AgentRoleRow(role: String, description: String) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(role, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
         Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
+    }
+}
+
+@Composable
+private fun ToolPackRow(name: String, skills: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(name, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+        Text(skills, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
     }
 }
