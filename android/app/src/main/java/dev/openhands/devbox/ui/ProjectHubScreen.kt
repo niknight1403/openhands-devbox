@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import dev.openhands.devbox.data.ProjectChoice
 import dev.openhands.devbox.data.Projects
 import dev.openhands.devbox.data.WorkflowRun
+import dev.openhands.devbox.data.Job
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,6 +42,8 @@ fun ProjectHubScreen(
     onRefreshRoutes: () -> Unit,
     workflowRuns: List<WorkflowRun>,
     workflowRunsStatus: String,
+    workflowJobs: List<Job>,
+    workflowJobsStatus: String,
     onRefreshWorkflowRuns: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -115,6 +118,26 @@ fun ProjectHubScreen(
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                        }
+                    }
+                    if (workflowJobs.isNotEmpty()) {
+                        Text(workflowJobsStatus, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        workflowJobs.forEach { job ->
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(job.name ?: "Job", style = MaterialTheme.typography.bodySmall)
+                                Text(
+                                    "Job: ${job.status ?: "unbekannt"} · ${job.conclusion ?: "kein Abschluss"}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (job.conclusion == "failure") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                job.steps.forEach { step ->
+                                    Text(
+                                        "  ${step.number}. ${step.name}: ${step.conclusion ?: step.status ?: "unbekannt"}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (step.conclusion == "failure") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
                         }
                     }
                 }
