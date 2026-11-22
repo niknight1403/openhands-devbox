@@ -35,10 +35,13 @@ fun ProjectHubScreen(
     projectMemory: String,
     projectMemoryStatus: String,
     onRefreshMemory: () -> Unit,
+    routeStatus: String,
+    routeDetails: String,
+    onRefreshRoutes: () -> Unit,
     onBack: () -> Unit,
 ) {
     val selected = Projects.findBySlug(selectedProject)
-    LaunchedEffect(selectedProject) { onRefreshMemory() }
+    LaunchedEffect(selectedProject) { onRefreshMemory(); onRefreshRoutes() }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -97,16 +100,20 @@ fun ProjectHubScreen(
             }
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Free Route Hunter", style = MaterialTheme.typography.titleMedium)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Free Route Hunter", style = MaterialTheme.typography.titleMedium)
+                        TextButton(onClick = onRefreshRoutes) { Text("Aktualisieren") }
+                    }
                     Text(
-                        if (model.isBlank()) {
-                            "Automatisch aktiv: Vor jedem Lauf wird eine erreichbare Gratis-Route gesucht und geprüft."
-                        } else {
-                            "Manuelles Modell aktiv: $model. Leere das Modellfeld, um den Hunter zu verwenden."
-                        },
+                        if (model.isBlank()) "Automatische Routenwahl ist für neue Agentenläufe konfiguriert."
+                        else "Manuelles Modell vorgegeben: $model",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Text(routeStatus, style = MaterialTheme.typography.bodyMedium)
+                    if (routeDetails.isNotBlank()) {
+                        Text(routeDetails, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     FilterChip(
                         selected = model.isBlank(),
                         onClick = {},
