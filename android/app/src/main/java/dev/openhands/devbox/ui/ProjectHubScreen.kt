@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.openhands.devbox.data.ProjectChoice
 import dev.openhands.devbox.data.Projects
+import dev.openhands.devbox.data.WorkflowRun
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,10 +39,13 @@ fun ProjectHubScreen(
     routeStatus: String,
     routeDetails: String,
     onRefreshRoutes: () -> Unit,
+    workflowRuns: List<WorkflowRun>,
+    workflowRunsStatus: String,
+    onRefreshWorkflowRuns: () -> Unit,
     onBack: () -> Unit,
 ) {
     val selected = Projects.findBySlug(selectedProject)
-    LaunchedEffect(selectedProject) { onRefreshMemory(); onRefreshRoutes() }
+    LaunchedEffect(selectedProject) { onRefreshMemory(); onRefreshRoutes(); onRefreshWorkflowRuns() }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -79,6 +83,40 @@ fun ProjectHubScreen(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.secondary,
                     )
+                }
+            }
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("GitHub Actions · Runs", style = MaterialTheme.typography.titleMedium)
+                        TextButton(onClick = onRefreshWorkflowRuns) { Text("Aktualisieren") }
+                    }
+                    Text(workflowRunsStatus, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    workflowRuns.take(6).forEach { run ->
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(run.name ?: "Workflow", style = MaterialTheme.typography.bodyMedium)
+                                val state = when {
+                                    run.status == "in_progress" -> "LÄUFT"
+                                    run.status == "queued" -> "WARTET"
+                                    run.conclusion == "success" -> "ERFOLGREICH"
+                                    run.conclusion == "failure" -> "FEHLGESCHLAGEN"
+                                    run.conclusion == "cancelled" -> "ABGEBROCHEN"
+                                    else -> run.conclusion?.uppercase() ?: run.status?.uppercase() ?: "UNBEKANNT"
+                                }
+                                Text(state, style = MaterialTheme.typography.labelSmall, color = when (run.conclusion) {
+                                    "success" -> MaterialTheme.colorScheme.tertiary
+                                    "failure" -> MaterialTheme.colorScheme.error
+                                    else -> MaterialTheme.colorScheme.primary
+                                })
+                            }
+                            Text(
+                                "${run.headBranch ?: "Branch unbekannt"} · Run #${run.id}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
             }
             Card(modifier = Modifier.fillMaxWidth()) {
