@@ -60,6 +60,13 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     var connectionCheck by mutableStateOf<String?>(null)
         private set
 
+    var projectMemory by mutableStateOf("")
+        private set
+
+    var projectMemoryStatus by mutableStateOf("Noch nicht geladen")
+        private set
+
+
     private val maxAnhangBytes = 20 * 1024 * 1024
     private val maxAnhaengsel = 5
 
@@ -104,6 +111,40 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 sendTask(ProjectAnalysis.task, analysis = true)
             } else {
                 push(false, "Projekt gewählt. Automatische Analyse benötigt gültige GitHub-Einstellungen.", isError = true)
+            }
+        }
+    }
+
+    /** Lädt das Projektgedächtnis aus dem Steuer-Repository, in dem der Workflow es fortschreibt. */
+    fun loadProjectMemory() {
+        val slug = settings.project
+        if (slug.isBlank()) {
+            projectMemory = ""
+            projectMemoryStatus = "Bitte zuerst ein Projekt auswählen."
+            return
+        }
+        if (settings.token.isBlank()) {
+            projectMemory = ""
+            projectMemoryStatus = "GitHub-Token fehlt. Bitte in den Einstellungen hinterlegen."
+            return
+        }
+        projectMemoryStatus = "Projektgedächtnis wird geladen ..."
+        viewModelScope.launch {
+            try {
+                val repository = "${settings.controlOwner}/${settings.controlRepo}"
+                val path = "projects/$slug/GEDAEHNTNIS.md"
+                projectMemory = GitHubApi { settings.token }.readRepositoryFile(repository, path)
+                projectMemoryStatus = "Aus $repository geladen · main"
+            } catch (error: GitHubApi.ApiException) {
+                projectMemory = ""
+                projectMemoryStatus = if (error.code == 404) {
+                    "Für dieses Projekt ist noch kein Gedächtnis gespeichert."
+                } else {
+                    "Laden fehlgeschlagen: ${error.message}"
+                }
+            } catch (error: Exception) {
+                projectMemory = ""
+                projectMemoryStatus = "Laden fehlgeschlagen: ${error.message ?: "unbekannter Fehler"}"
             }
         }
     }
