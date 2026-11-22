@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -117,6 +118,21 @@ class GitHubApi(private val tokenProvider: () -> String) {
         val antwort = call(request("/repos/$targetRepo/contents/$path", "PUT", body))
         val daten = json.decodeFromString(ContentUpload.serializer(), antwort)
         return daten.downloadUrl ?: "https://raw.githubusercontent.com/$targetRepo/main/$path"
+    }
+
+    /** Liest eine Textdatei aus einem Repository-Zweig (z. B. Projektgedächtnis). */
+    suspend fun readRepositoryFile(repository: String, path: String, ref: String = "main"): String {
+        val safePath = path.split("/").joinToString("/") { java.net.URLEncoder.encode(it, "UTF-8").replace("+", "%20") }
+        val safeRef = java.net.URLEncoder.encode(ref, "UTF-8")
+        val response = json.parseToJsonElement(
+            call(request("/repos/$repository/contents/$safePath?ref=$safeRef"))
+        ) as? JsonObject ?: throw ApiException(502, "GitHub hat keinen gültigen Dateiinhalt geliefert.")
+        val encoded = response["content"]?.jsonPrimitive?.content
+            ?: throw ApiException(502, "Die Datei enthält keinen lesbaren Inhalt.")
+        return runCatching {
+            android.util.Base64.decode(encoded.replace("\n", ""), android.util.Base64.DEFAULT)
+                .toString(Charsets.UTF_8)
+        }.getOrElse { throw ApiException(502, "Der Dateiinhalt konnte nicht dekodiert werden.") }
     }
 
     /** Sucht den Run, der nach dem Absenden entstanden ist. */
