@@ -66,6 +66,9 @@ private fun DevboxApp(viewModel: ChatViewModel = viewModel()) {
             routeStatus = viewModel.routeStatus,
             routeDetails = viewModel.routeDetails,
             onRefreshRoutes = viewModel::loadRouteStatus,
+            workflowRuns = viewModel.recentWorkflowRuns,
+            workflowRunsStatus = viewModel.workflowRunsStatus,
+            onRefreshWorkflowRuns = viewModel::loadRecentWorkflowRuns,
             onBack = { screen = AppScreen.Dashboard },
         )
         AppScreen.LiveApp -> LivePreviewScreen(
