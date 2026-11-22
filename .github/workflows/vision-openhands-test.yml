@@ -1,0 +1,25 @@
+name: Vision OpenHands integration test
+on:
+  push:
+    branches:
+      - agent/vision-test-trigger
+    paths:
+      - .github/workflows/vision-openhands-test.yml
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  vision-test:
+    uses: ./.github/workflows/openhands-task.yml
+    with:
+      project: vision
+      target: Vision
+      profile: superagent
+      task: >-
+        Begrenzter Integrationstest für Vision: prüfe Checkout, Projektkontext,
+        Tests und den Draft-PR-Ablauf. Dokumentiere belegte Befunde und höchstens
+        eine kleine reversible Optimierung. Kein Merge, keine kostenpflichtigen
+        Ressourcen und keine Produktivaktionen.
+    secrets: inherit
