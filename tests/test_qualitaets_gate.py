@@ -6,8 +6,8 @@ Werkzeuge nennen, Befunde zeigen, ohne zu uebertreiben.
 
 import sys
 import unittest
-from unittest.mock import patch
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
@@ -30,26 +30,26 @@ class GateTest(unittest.TestCase):
         self.assertFalse(daten["sauber"])
 
     def test_streng_meldet_fehlendes_pflichtwerkzeug(self):
-        with patch.object(gate.Werkzeug, "verfuegbar", autospec=True,
-                          side_effect=lambda w: w.name != "pytest"):
-            with patch.object(gate, "_ausfuehren", return_value={
+        with (patch.object(gate.Werkzeug, "verfuegbar", autospec=True,
+                           side_effect=lambda w: w.name != "pytest"),
+              patch.object(gate, "_ausfuehren", return_value={
                 "name": "kompilat", "zweck": "Syntax", "status": "sauber", "anzahl": 0,
-            }):
-                daten = gate.bericht(WURZEL, ["pytest", "kompilat"])
+              })):
+            daten = gate.bericht(WURZEL, ["pytest", "kompilat"])
         self.assertEqual(daten["pflicht_fehlend"], ["pytest"])
         self.assertFalse(daten["sauber"])
         self.assertIn("Pflichtwerkzeuge fehlen: pytest", gate.als_markdown(daten))
 
     def test_optionales_werkzeug_blockiert_standardlauf_nicht(self):
-        with patch.object(gate.Werkzeug, "verfuegbar", autospec=True,
-                          side_effect=lambda w: w.name in {"pytest", "kompilat"}):
-            with patch.object(gate, "_ausfuehren", side_effect=lambda w, _: {
+        with (patch.object(gate.Werkzeug, "verfuegbar", autospec=True,
+                           side_effect=lambda w: w.name in {"pytest", "kompilat"}),
+              patch.object(gate, "_ausfuehren", side_effect=lambda w, _: {
                 "name": w.name, "zweck": w.zweck, "status": "sauber", "anzahl": 0,
-            }):
-                daten = gate.bericht(WURZEL)
-                self.assertTrue(daten["sauber"])
-                self.assertIn("ruff", daten["fehlend"])
-                self.assertFalse(gate.bericht(WURZEL, ["ruff", "kompilat"])["sauber"])
+              })):
+            daten = gate.bericht(WURZEL)
+            self.assertTrue(daten["sauber"])
+            self.assertIn("ruff", daten["fehlend"])
+            self.assertFalse(gate.bericht(WURZEL, ["ruff", "kompilat"])["sauber"])
 
     def test_kompilat_ist_immer_verfuegbar_und_sauber(self):
         daten = gate.bericht(WURZEL, ["kompilat"])
