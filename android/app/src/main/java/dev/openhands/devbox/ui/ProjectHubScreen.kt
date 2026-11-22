@@ -120,6 +120,21 @@ fun ProjectHubScreen(
                 }
             }
             Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Text("MCP-Verbindungen", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "In diesem Repository ist aktuell keine MCP-Server-Registry und kein MCP-Verbindungsworkflow nachweisbar. Deshalb werden hier keine verbundenen Server oder grünen Healthchecks vorgetäuscht.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        "Vorhanden sind AgentSkills- und Plugin-Packs. Eine echte MCP-Verwaltung benötigt anschließend einen definierten Server-Katalog, Transport-/Auth-Verträge und sichere Laufzeitprüfungen.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                    )
+                }
+            }
+            Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     Text("Werkzeug- & Entwickler-Packs", style = MaterialTheme.typography.titleMedium)
                     Text(
