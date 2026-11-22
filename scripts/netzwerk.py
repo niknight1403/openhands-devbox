@@ -85,7 +85,7 @@ def pruefe_url(url: str, erlaube_privat: bool = False) -> str:
     if teile.username is not None or teile.password is not None:
         raise NetzFehler("Zugangsdaten in URLs sind nicht erlaubt")
     try:
-        teile.port
+        _ = teile.port
     except ValueError as fehler:
         raise NetzFehler("Ungueltiger Port in der Adresse") from fehler
     if not erlaube_privat:
