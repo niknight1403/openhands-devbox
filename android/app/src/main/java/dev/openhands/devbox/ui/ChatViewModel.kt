@@ -60,6 +60,31 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     var connectionCheck by mutableStateOf<String?>(null)
         private set
 
+    var projectMemory by mutableStateOf("")
+        private set
+
+    var projectMemoryStatus by mutableStateOf("Noch nicht geladen")
+        private set
+
+    var routeStatus by mutableStateOf("Routenstatus wird geladen ...")
+        private set
+
+    var routeDetails by mutableStateOf("")
+        private set
+
+    var recentWorkflowRuns by mutableStateOf<List<dev.openhands.devbox.data.WorkflowRun>>(emptyList())
+        private set
+
+    var workflowRunsStatus by mutableStateOf("Noch nicht geladen")
+        private set
+
+    var recentWorkflowJobs by mutableStateOf<List<dev.openhands.devbox.data.Job>>(emptyList())
+        private set
+
+    var workflowJobsStatus by mutableStateOf("")
+        private set
+
+
     private val maxAnhangBytes = 20 * 1024 * 1024
     private val maxAnhaengsel = 5
 
@@ -104,6 +129,125 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 sendTask(ProjectAnalysis.task, analysis = true)
             } else {
                 push(false, "Projekt gewählt. Automatische Analyse benötigt gültige GitHub-Einstellungen.", isError = true)
+            }
+        }
+    }
+
+    /** Lädt echte Actions-Läufe; fehlende Berechtigungen werden als Fehler angezeigt. */
+    fun loadRecentWorkflowRuns() {
+        if (settings.token.isBlank()) {
+            workflowRunsStatus = "GitHub-Token fehlt."
+            recentWorkflowRuns = emptyList()
+            return
+        }
+        workflowRunsStatus = "GitHub-Actions-Läufe werden geladen ..."
+        viewModelScope.launch {
+            try {
+                val api = GitHubApi { settings.token }
+                recentWorkflowRuns = api.recentRuns(settings.controlRepoFullName, 8)
+                recentWorkflowJobs = recentWorkflowRuns.take(3).flatMap { run ->
+                    runCatching { api.runJobs(settings.controlRepoFullName, run.id) }.getOrDefault(emptyList())
+                }
+                workflowRunsStatus = if (recentWorkflowRuns.isEmpty()) {
+                    "GitHub meldet keine Actions-Läufe."
+                } else {
+                    "${recentWorkflowRuns.size} aktuelle Läufe aus ${settings.controlRepoFullName}"
+                }
+                workflowJobsStatus = if (recentWorkflowJobs.isEmpty()) {
+                    "Für die letzten Läufe sind keine Jobdetails verfügbar."
+                } else {
+                    "${recentWorkflowJobs.size} Jobdetails aus den drei neuesten Läufen"
+                }
+            } catch (error: Exception) {
+                recentWorkflowRuns = emptyList()
+                recentWorkflowJobs = emptyList()
+                workflowJobsStatus = ""
+                workflowRunsStatus = "Actions nicht verfügbar: ${error.message ?: "unbekannter Fehler"}"
+            }
+        }
+    }
+
+    /** Liest den zuletzt veröffentlichten Live-Status des LLM-Autopiloten. */
+    fun loadRouteStatus() {
+        if (settings.token.isBlank()) {
+            routeStatus = "GitHub-Token fehlt."
+            routeDetails = ""
+            return
+        }
+        routeStatus = "Routenstatus wird geladen ..."
+        viewModelScope.launch {
+            try {
+                val raw = GitHubApi { settings.token }.readRepositoryFile(
+                    settings.controlRepoFullName,
+                    "status.json",
+                    ref = "autopilot/status",
+                )
+                val root = kotlinx.serialization.json.Json.parseToJsonElement(raw)
+                    as? kotlinx.serialization.json.JsonObject
+                    ?: throw IllegalStateException("Ungültiger Statusbericht.")
+                val routes = root["routes"] as? kotlinx.serialization.json.JsonArray
+                    ?: kotlinx.serialization.json.JsonArray(emptyList())
+                val best = root["best"] as? kotlinx.serialization.json.JsonObject
+                val reachable = routes.count { item ->
+                    (item as? kotlinx.serialization.json.JsonObject)?.get("chat_ok")
+                        ?.toString()?.toBoolean() == true
+                }
+                val toolReady = routes.count { item ->
+                    (item as? kotlinx.serialization.json.JsonObject)?.get("tools_ok")
+                        ?.toString()?.toBoolean() == true
+                }
+                if (best == null || best.toString() == "null") {
+                    routeStatus = "Keine bestätigte Route im letzten Bericht."
+                    routeDetails = "$reachable Chat-Routen erreichbar · $toolReady mit Werkzeugtest"
+                } else {
+                    fun field(key: String) = best[key]?.toString()?.trim('"').orEmpty()
+                    routeStatus = "Beste Route: ${field("provider")} / ${field("model")}"
+                    routeDetails = "$reachable Chat-Routen erreichbar · $toolReady mit Werkzeugaufruf bestätigt · ${field("latency_ms")} ms"
+                }
+            } catch (error: GitHubApi.ApiException) {
+                routeStatus = if (error.code == 404) {
+                    "Noch kein Autopilot-Bericht vorhanden."
+                } else {
+                    "Routenstatus nicht verfügbar: ${error.message}"
+                }
+                routeDetails = ""
+            } catch (error: Exception) {
+                routeStatus = "Routenstatus nicht verfügbar: ${error.message ?: "unbekannter Fehler"}"
+                routeDetails = ""
+            }
+        }
+    }
+
+    /** Lädt das Projektgedächtnis aus dem Steuer-Repository, in dem der Workflow es fortschreibt. */
+    fun loadProjectMemory() {
+        val slug = settings.project
+        if (slug.isBlank()) {
+            projectMemory = ""
+            projectMemoryStatus = "Bitte zuerst ein Projekt auswählen."
+            return
+        }
+        if (settings.token.isBlank()) {
+            projectMemory = ""
+            projectMemoryStatus = "GitHub-Token fehlt. Bitte in den Einstellungen hinterlegen."
+            return
+        }
+        projectMemoryStatus = "Projektgedächtnis wird geladen ..."
+        viewModelScope.launch {
+            try {
+                val repository = "${settings.controlOwner}/${settings.controlRepo}"
+                val path = "projects/$slug/GEDAEHNTNIS.md"
+                projectMemory = GitHubApi { settings.token }.readRepositoryFile(repository, path)
+                projectMemoryStatus = "Aus $repository geladen · main"
+            } catch (error: GitHubApi.ApiException) {
+                projectMemory = ""
+                projectMemoryStatus = if (error.code == 404) {
+                    "Für dieses Projekt ist noch kein Gedächtnis gespeichert."
+                } else {
+                    "Laden fehlgeschlagen: ${error.message}"
+                }
+            } catch (error: Exception) {
+                projectMemory = ""
+                projectMemoryStatus = "Laden fehlgeschlagen: ${error.message ?: "unbekannter Fehler"}"
             }
         }
     }

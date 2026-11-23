@@ -19,10 +19,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.openhands.devbox.data.ProjectChoice
 import dev.openhands.devbox.data.Projects
+import dev.openhands.devbox.data.WorkflowRun
+import dev.openhands.devbox.data.Job
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,9 +34,21 @@ fun ProjectHubScreen(
     model: String,
     onSelectProject: (String) -> Unit,
     onOpenLiveApp: () -> Unit,
+    projectMemory: String,
+    projectMemoryStatus: String,
+    onRefreshMemory: () -> Unit,
+    routeStatus: String,
+    routeDetails: String,
+    onRefreshRoutes: () -> Unit,
+    workflowRuns: List<WorkflowRun>,
+    workflowRunsStatus: String,
+    workflowJobs: List<Job>,
+    workflowJobsStatus: String,
+    onRefreshWorkflowRuns: () -> Unit,
     onBack: () -> Unit,
 ) {
     val selected = Projects.findBySlug(selectedProject)
+    LaunchedEffect(selectedProject) { onRefreshMemory(); onRefreshRoutes(); onRefreshWorkflowRuns() }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -52,6 +67,115 @@ fun ProjectHubScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text("Verschiedene Projekte", style = MaterialTheme.typography.headlineSmall)
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Agenten-Crew", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Die Crew nutzt die tatsächlich konfigurierten GitHub-Action-Profile. Superagent führt drei getrennte Sitzungen nacheinander aus; die spezialisierten Profile starten jeweils eine eigene Sitzung.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    AgentRoleRow("ARCHITEKT", "Analysiert Repository, Risiken und Prüfplan.")
+                    AgentRoleRow("IMPLEMENTIERER", "Setzt den begrenzten Plan im Projekt um.")
+                    AgentRoleRow("REVIEWER", "Prüft Diff, Sicherheit und Regressionen.")
+                    AgentRoleRow("FRONTEND", "Spezialisierter UI-/UX-Durchlauf.")
+                    AgentRoleRow("SECURITY", "Prüft Authentifizierung, Eingaben und Secrets.")
+                    AgentRoleRow("QUALITY", "Führt passende Tests, Lint und Builds aus.")
+                    Text(
+                        "Hinweis: Rollenprofile sind keine parallel laufenden Agenten. Live-Status erscheint erst, wenn GitHub Actions einen echten Lauf meldet.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                    )
+                }
+            }
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("GitHub Actions · Runs", style = MaterialTheme.typography.titleMedium)
+                        TextButton(onClick = onRefreshWorkflowRuns) { Text("Aktualisieren") }
+                    }
+                    Text(workflowRunsStatus, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    workflowRuns.take(6).forEach { run ->
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(run.name ?: "Workflow", style = MaterialTheme.typography.bodyMedium)
+                                val state = when {
+                                    run.status == "in_progress" -> "LÄUFT"
+                                    run.status == "queued" -> "WARTET"
+                                    run.conclusion == "success" -> "ERFOLGREICH"
+                                    run.conclusion == "failure" -> "FEHLGESCHLAGEN"
+                                    run.conclusion == "cancelled" -> "ABGEBROCHEN"
+                                    else -> run.conclusion?.uppercase() ?: run.status?.uppercase() ?: "UNBEKANNT"
+                                }
+                                Text(state, style = MaterialTheme.typography.labelSmall, color = when (run.conclusion) {
+                                    "success" -> MaterialTheme.colorScheme.tertiary
+                                    "failure" -> MaterialTheme.colorScheme.error
+                                    else -> MaterialTheme.colorScheme.primary
+                                })
+                            }
+                            Text(
+                                "${run.headBranch ?: "Branch unbekannt"} · Run #${run.id}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    if (workflowJobs.isNotEmpty()) {
+                        Text(workflowJobsStatus, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        workflowJobs.forEach { job ->
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(job.name ?: "Job", style = MaterialTheme.typography.bodySmall)
+                                Text(
+                                    "Job: ${job.status ?: "unbekannt"} · ${job.conclusion ?: "kein Abschluss"}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (job.conclusion == "failure") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                job.steps.forEach { step ->
+                                    Text(
+                                        "  ${step.number}. ${step.name}: ${step.conclusion ?: step.status ?: "unbekannt"}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (step.conclusion == "failure") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Text("MCP-Verbindungen", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "In diesem Repository ist aktuell keine MCP-Server-Registry und kein MCP-Verbindungsworkflow nachweisbar. Deshalb werden hier keine verbundenen Server oder grünen Healthchecks vorgetäuscht.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        "Vorhanden sind AgentSkills- und Plugin-Packs. Eine echte MCP-Verwaltung benötigt anschließend einen definierten Server-Katalog, Transport-/Auth-Verträge und sichere Laufzeitprüfungen.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                    )
+                }
+            }
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Text("Werkzeug- & Entwickler-Packs", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Kuratierte lokale Agent-Skills aus .agents/skills. Die App zeigt den versionierten Katalog; Installation und Kopieren erfolgen weiterhin über den geprüften CLI-Installer.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    ToolPackRow("ENTWICKLUNG", "Autonomous Development · Automated Refactoring")
+                    ToolPackRow("QUALITÄT", "Quality Engineering · Security")
+                    ToolPackRow("OBERFLÄCHE", "Frontend UX")
+                    ToolPackRow("INTEGRATIONEN", "Integrations")
+                    Text(
+                        "Installationsschutz: nur vorhandene Skills mit SKILL.md; Symlinks und Überschreiben werden abgewiesen. Kein automatischer Installationslauf aus dieser Ansicht.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                    )
+                }
+            }
             Text(
                 "Wähle ein freigegebenes Projekt. Mit gültigem GitHub-Zugang startet beim Wechsel eine Analyse mit Verbesserungsvorschlägen und höchstens einer kleinen Optimierung. Den Lauf siehst du im Chat.",
                 style = MaterialTheme.typography.bodyMedium,
@@ -65,17 +189,47 @@ fun ProjectHubScreen(
                 )
             }
             Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Free Route Hunter", style = MaterialTheme.typography.titleMedium)
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Projektgedächtnis", style = MaterialTheme.typography.titleMedium)
+                        TextButton(onClick = onRefreshMemory, enabled = selectedProject.isNotBlank()) { Text("Aktualisieren") }
+                    }
                     Text(
-                        if (model.isBlank()) {
-                            "Automatisch aktiv: Vor jedem Lauf wird eine erreichbare Gratis-Route gesucht und geprüft."
-                        } else {
-                            "Manuelles Modell aktiv: $model. Leere das Modellfeld, um den Hunter zu verwenden."
-                        },
+                        projectMemoryStatus,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (projectMemory.isNotBlank()) {
+                        Text(
+                            projectMemory,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    } else {
+                        Text(
+                            "Hier erscheinen dokumentierte Läufe, Entscheidungen, Befunde, Wiederholungswarnungen und offene Punkte aus projects/$selectedProject/GEDAEHNTNIS.md.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Free Route Hunter", style = MaterialTheme.typography.titleMedium)
+                        TextButton(onClick = onRefreshRoutes) { Text("Aktualisieren") }
+                    }
+                    Text(
+                        if (model.isBlank()) "Automatische Routenwahl ist für neue Agentenläufe konfiguriert."
+                        else "Manuelles Modell vorgegeben: $model",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Text(routeStatus, style = MaterialTheme.typography.bodyMedium)
+                    if (routeDetails.isNotBlank()) {
+                        Text(routeDetails, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     FilterChip(
                         selected = model.isBlank(),
                         onClick = {},
@@ -112,5 +266,21 @@ private fun ProjectCard(project: ProjectChoice, selected: Boolean, onClick: () -
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+}
+
+@Composable
+private fun AgentRoleRow(role: String, description: String) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(role, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+        Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
+    }
+}
+
+@Composable
+private fun ToolPackRow(name: String, skills: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(name, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+        Text(skills, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
     }
 }

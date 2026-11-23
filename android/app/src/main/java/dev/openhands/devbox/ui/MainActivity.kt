@@ -28,9 +28,20 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun DevboxApp(viewModel: ChatViewModel = viewModel()) {
-    var screen by remember { mutableStateOf(AppScreen.Chat) }
+    var screen by remember { mutableStateOf(AppScreen.Dashboard) }
 
     when (screen) {
+        AppScreen.Dashboard -> DashboardScreen(
+            busy = viewModel.busy,
+            statusText = viewModel.statusText,
+            selectedProject = viewModel.settings.project,
+            model = viewModel.settings.model,
+            profile = viewModel.settings.profile,
+            onOpenChat = { screen = AppScreen.Chat },
+            onOpenProjects = { screen = AppScreen.Projects },
+            onOpenSettings = { screen = AppScreen.Settings },
+            onOpenLiveApp = { screen = AppScreen.LiveApp },
+        )
         AppScreen.Settings -> SettingsScreen(
             settings = viewModel.settings,
             connectionCheck = viewModel.connectionCheck,
@@ -39,7 +50,7 @@ private fun DevboxApp(viewModel: ChatViewModel = viewModel()) {
                 screen = AppScreen.Chat
             },
             onTest = viewModel::testConnection,
-            onBack = { screen = AppScreen.Chat },
+            onBack = { screen = AppScreen.Dashboard },
         )
         AppScreen.Projects -> ProjectHubScreen(
             selectedProject = viewModel.settings.project,
@@ -49,12 +60,23 @@ private fun DevboxApp(viewModel: ChatViewModel = viewModel()) {
                 screen = AppScreen.Chat
             },
             onOpenLiveApp = { screen = AppScreen.LiveApp },
-            onBack = { screen = AppScreen.Chat },
+            projectMemory = viewModel.projectMemory,
+            projectMemoryStatus = viewModel.projectMemoryStatus,
+            onRefreshMemory = viewModel::loadProjectMemory,
+            routeStatus = viewModel.routeStatus,
+            routeDetails = viewModel.routeDetails,
+            onRefreshRoutes = viewModel::loadRouteStatus,
+            workflowRuns = viewModel.recentWorkflowRuns,
+            workflowRunsStatus = viewModel.workflowRunsStatus,
+            workflowJobs = viewModel.recentWorkflowJobs,
+            workflowJobsStatus = viewModel.workflowJobsStatus,
+            onRefreshWorkflowRuns = viewModel::loadRecentWorkflowRuns,
+            onBack = { screen = AppScreen.Dashboard },
         )
         AppScreen.LiveApp -> LivePreviewScreen(
             url = viewModel.settings.livePreviewUrl,
             projectLabel = viewModel.settings.project.ifBlank { "Projekt" },
-            onBack = { screen = AppScreen.Chat },
+            onBack = { screen = AppScreen.Dashboard },
         )
         AppScreen.Chat -> ChatScreen(
             messages = viewModel.messages,
@@ -73,9 +95,10 @@ private fun DevboxApp(viewModel: ChatViewModel = viewModel()) {
             onOpenSettings = { screen = AppScreen.Settings },
             onOpenProjects = { screen = AppScreen.Projects },
             onOpenLiveApp = { screen = AppScreen.LiveApp },
+            onOpenDashboard = { screen = AppScreen.Dashboard },
             onMerge = viewModel::mergePr,
         )
     }
 }
 
-private enum class AppScreen { Chat, Projects, LiveApp, Settings }
+private enum class AppScreen { Dashboard, Chat, Projects, LiveApp, Settings }
