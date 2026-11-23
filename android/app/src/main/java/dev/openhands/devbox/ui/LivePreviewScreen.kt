@@ -1,7 +1,6 @@
 package dev.openhands.devbox.ui
 
 import android.annotation.SuppressLint
-import android.net.Uri
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -25,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.dp
+import dev.openhands.devbox.data.LivePreviewStatus
+import dev.openhands.devbox.data.resolveLivePreviewState
 
 @SuppressLint("SetJavaScriptEnabled")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,12 +36,8 @@ fun LivePreviewScreen(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
-    val validUrl = remember(url) {
-        runCatching {
-            val uri = Uri.parse(url.trim())
-            uri.scheme in setOf("http", "https") && !uri.host.isNullOrBlank()
-        }.getOrDefault(false)
-    }
+    val previewState = remember(url) { resolveLivePreviewState(url) }
+    val activeUrl = if (previewState.isReady) previewState.displayUrl else null
     val webView = remember(url) {
         WebView(context).apply {
             settings.javaScriptEnabled = true
@@ -53,7 +50,7 @@ fun LivePreviewScreen(
                     return target.scheme !in setOf("http", "https")
                 }
             }
-            if (validUrl) loadUrl(url.trim())
+            activeUrl?.let { loadUrl(it) }
         }
     }
     DisposableEffect(webView) {
@@ -66,12 +63,12 @@ fun LivePreviewScreen(
                 title = { Text("Live App · $projectLabel") },
                 navigationIcon = { TextButton(onClick = onBack) { Text("Zurück") } },
                 actions = {
-                    TextButton(onClick = { if (validUrl) webView.reload() }, enabled = validUrl) { Text("Aktualisieren") }
+                    TextButton(onClick = { if (previewState.isReady) webView.reload() }, enabled = previewState.isReady) { Text("Aktualisieren") }
                 },
             )
         },
     ) { padding ->
-        if (validUrl) {
+        if (previewState.status == LivePreviewStatus.READY) {
             AndroidView(
                 factory = { webView },
                 modifier = Modifier.fillMaxSize().padding(padding),
