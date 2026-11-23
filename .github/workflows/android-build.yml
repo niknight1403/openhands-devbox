@@ -16,6 +16,8 @@ on:
       - "v*"
     paths:
       - "android/**"
+      - "scripts/android_release_tag.py"
+      - "tests/test_android_release_tag.py"
       - ".github/workflows/android-build.yml"
   pull_request:
     paths:
@@ -84,7 +86,7 @@ jobs:
           set -euo pipefail
           RELEASE_TAG="${{ inputs.release_tag || github.ref_name }}"
           if [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/main" ]]; then
-            RELEASE_TAG="$(jq -r '.head_commit.message | split(": ")[1] | split("\\n")[0]' "$GITHUB_EVENT_PATH")"
+            RELEASE_TAG="$(python3 scripts/android_release_tag.py "$GITHUB_EVENT_NAME" "$GITHUB_REF" "$GITHUB_EVENT_PATH")"
           fi
           if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-android$ ]]; then
             echo "::error::Release tag must match vMAJOR.MINOR.PATCH-android"
