@@ -41,7 +41,7 @@ class AutonomyEngine(private val api: GitHubApi) {
 
         emit(Event.Info("Auftrag angenommen. Durchlauf ${request.iteration} von ${request.iterations}."))
         val gewaehltesProjekt = Projects.findBySlug(settings.project)
-        val targetRepo = gewaehltesProjekt?.let { "${settings.controlOwner}/${it.targetShort}" } ?: settings.targetRepo
+        val targetRepo = Projects.targetRepoFor(gewaehltesProjekt, settings.targetRepo)
         if (gewaehltesProjekt != null) {
             emit(
                 Event.Info(
