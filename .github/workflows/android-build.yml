@@ -22,6 +22,8 @@ on:
   pull_request:
     paths:
       - "android/**"
+      - "scripts/android_release_tag.py"
+      - "tests/test_android_release_tag.py"
       - ".github/workflows/android-build.yml"
 
 permissions:
@@ -96,8 +98,10 @@ jobs:
             echo "::error::Release $RELEASE_TAG already exists"
             exit 1
           fi
+          test -s android/app/build/outputs/apk/debug/app-debug.apk
           cp android/app/build/outputs/apk/debug/app-debug.apk "openhands-devbox-${RELEASE_TAG}.apk"
-          gh release create "$RELEASE_TAG" "openhands-devbox-${RELEASE_TAG}.apk" \
+          sha256sum "openhands-devbox-${RELEASE_TAG}.apk" > "openhands-devbox-${RELEASE_TAG}.apk.sha256"
+          gh release create "$RELEASE_TAG" "openhands-devbox-${RELEASE_TAG}.apk" "openhands-devbox-${RELEASE_TAG}.apk.sha256" \
             --target "$GITHUB_SHA" \
             --repo "$GITHUB_REPOSITORY" \
             --title "OpenHands Devbox ${RELEASE_TAG}" \
