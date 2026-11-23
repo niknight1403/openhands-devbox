@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,6 +22,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -72,13 +73,12 @@ fun ChatScreen(
     onMerge: (Int) -> Unit,
 ) {
     var draft by remember { mutableStateOf("") }
-    // Dateien, Fotos und Videos direkt vom Gerät; die App laedt sie danach
-    // ins Zielprojekt und gibt die Adressen an den Lauf weiter.
     val dateiAuswahl = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) onAttach(uri)
     }
     val listState = rememberLazyListState()
     val uriHandler = LocalUriHandler.current
+    val isOrchestrated = profile == "superagent"
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
@@ -88,127 +88,89 @@ fun ChatScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text("OpenHands Devbox", fontWeight = FontWeight.SemiBold)
-                        Text(
-                            text = statusText,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                        Text("OPENHANDS  /  DEVBOX", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(statusText, style = MaterialTheme.typography.labelSmall,
+                            color = if (busy) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 },
                 actions = {
-                    TextButton(onClick = onOpenProjects) { Text("Projekte") }
-                    TextButton(onClick = onOpenLiveApp) { Text("Live App") }
-                    if (runUrl != null) {
-                        TextButton(onClick = { runUrl.let { uriHandler.openUri(it) } }) { Text("Lauf") }
-                    }
-                    TextButton(onClick = onOpenSettings) { Text("Einstellungen") }
+                    TextButton(onClick = onOpenProjects) { Text("Workspace") }
+                    if (runUrl != null) TextButton(onClick = { uriHandler.openUri(runUrl) }) { Text("Lauf") }
+                    TextButton(onClick = onOpenSettings) { Text("Setup") }
                 },
             )
         },
         bottomBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .imePadding()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = "Profil: $profile",
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+            Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
+                .imePadding().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(if (isOrchestrated) "SUPERAGENT · 3 PHASEN" else "SPEZIALISTEN-PROFIL",
+                        modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                     Text("Autonom", style = MaterialTheme.typography.labelMedium)
-                    Switch(
-                        checked = autoMerge,
-                        onCheckedChange = onAutoMergeChange,
-                        enabled = !busy,
-                    )
+                    Switch(checked = autoMerge, onCheckedChange = onAutoMergeChange, enabled = !busy)
                 }
                 if (attachments.isNotEmpty()) {
-                    Spacer(Modifier.height(4.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         attachments.forEach { name ->
-                            FilterChip(
-                                selected = true,
-                                onClick = { onRemoveAttachment(name) },
-                                label = { Text("$name ×", style = MaterialTheme.typography.labelSmall) },
-                                enabled = !busy,
-                            )
+                            FilterChip(selected = true, onClick = { onRemoveAttachment(name) },
+                                label = { Text("$name ×", style = MaterialTheme.typography.labelSmall) }, enabled = !busy)
                         }
                     }
                 }
                 Spacer(Modifier.height(6.dp))
-                Row(verticalAlignment = Alignment.Bottom) {
-                    OutlinedButton(
-                        onClick = { dateiAuswahl.launch("*/*") },
-                        enabled = !busy,
-                    ) { Text("Datei") }
-                    Spacer(Modifier.size(8.dp))
-                    OutlinedTextField(
-                        value = draft,
-                        onValueChange = { draft = it },
-                        modifier = Modifier
-                            .weight(1f)
-                            .heightIn(min = 56.dp, max = 160.dp),
-                        placeholder = { Text("Was soll gebaut oder repariert werden?") },
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                        maxLines = 5,
-                    )
-                    Spacer(Modifier.size(8.dp))
-                    if (busy) {
-                        OutlinedButton(onClick = onStop) { Text("Stop") }
-                    } else {
-                        Button(
-                            onClick = {
-                                if (draft.isNotBlank()) {
-                                    onSend(draft)
-                                    draft = ""
-                                }
-                            },
-                        ) { Text("Senden") }
-                    }
+                Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    OutlinedButton(onClick = { dateiAuswahl.launch("*/*") }, enabled = !busy) { Text("+ Datei") }
+                    OutlinedTextField(value = draft, onValueChange = { draft = it },
+                        modifier = Modifier.weight(1f).heightIn(min = 54.dp, max = 140.dp),
+                        placeholder = { Text("Aufgabe an deine Agenten …") },
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send), maxLines = 5)
+                    if (busy) OutlinedButton(onClick = onStop) { Text("Stop") }
+                    else Button(onClick = {
+                        if (draft.isNotBlank()) { onSend(draft); draft = "" }
+                    }) { Text("Start") }
                 }
             }
         },
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxWidth()) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column {
+                            Text("DEVELOPMENT CONTROL", style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary)
+                            Text(if (isOrchestrated) "Superagent-Team aktiv" else "Agentenrolle: $profile",
+                                style = MaterialTheme.typography.titleMedium)
+                        }
+                        FilterChip(selected = busy, onClick = {}, enabled = false, label = { Text(if (busy) "Läuft" else "Bereit") })
+                    }
+                    Text(if (isOrchestrated) "Architekt → Implementierer → Qualitätsprüfer · gemeinsamer Workspace"
+                        else "Ein fokussierter Agentenlauf mit passendem Rollenprofil",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            LazyColumn(state = listState, modifier = Modifier.fillMaxWidth().weight(1f),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 items(messages, key = { it.id }) { message ->
                     MessageBubble(message, onOpen = { url -> uriHandler.openUri(url) }, onMerge = onMerge)
                 }
             }
             HorizontalDivider()
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 7.dp),
+                horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 profiles.forEach { entry ->
-                    FilterChip(
-                        selected = entry == profile,
-                        onClick = { onProfileChange(entry) },
-                        label = { Text(entry, style = MaterialTheme.typography.labelSmall) },
-                        enabled = !busy,
-                    )
+                    FilterChip(selected = entry == profile, onClick = { onProfileChange(entry) },
+                        label = { Text(when (entry) {
+                            "superagent" -> "Superagent"
+                            "implementer" -> "Build"
+                            "frontend" -> "Frontend"
+                            "security" -> "Security"
+                            else -> "QA"
+                        }, style = MaterialTheme.typography.labelSmall) }, enabled = !busy)
                 }
             }
         }
@@ -228,38 +190,23 @@ private fun MessageBubble(message: ChatMessage, onOpen: (String) -> Unit, onMerg
         message.isError -> MaterialTheme.colorScheme.onError
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
-    ) {
-        Column(
-            modifier = Modifier
-                .widthIn(max = 320.dp)
-                .background(container, RoundedCornerShape(14.dp))
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-        ) {
-            Text(text = message.text, color = contentColor, style = MaterialTheme.typography.bodyMedium)
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start) {
+        Column(modifier = Modifier.widthIn(max = 340.dp).background(container, RoundedCornerShape(18.dp))
+            .padding(horizontal = 14.dp, vertical = 11.dp)) {
+            Text(message.text, color = contentColor, style = MaterialTheme.typography.bodyMedium)
             if (message.url != null) {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "Öffnen",
-                    color = contentColor,
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.clickable { onOpen(message.url) },
-                )
+                Spacer(Modifier.height(5.dp))
+                Text("Öffnen ↗", color = contentColor, style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.clickable { onOpen(message.url) })
             }
             val prNumber = Regex("#(\\d+)").find(message.text)?.groupValues?.getOrNull(1)?.toIntOrNull()
             if (!isUser && prNumber != null && message.text.contains("Draft-PR")) {
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(7.dp))
                 OutlinedButton(onClick = { onMerge(prNumber) }) { Text("Jetzt mergen", style = MaterialTheme.typography.labelSmall) }
             }
-            Spacer(Modifier.height(2.dp))
-            Text(
-                text = message.time,
-                color = contentColor.copy(alpha = 0.6f),
-                style = MaterialTheme.typography.labelSmall,
-                fontFamily = FontFamily.Monospace,
-            )
+            Spacer(Modifier.height(3.dp))
+            Text(message.time, color = contentColor.copy(alpha = 0.62f),
+                style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace)
         }
     }
 }
