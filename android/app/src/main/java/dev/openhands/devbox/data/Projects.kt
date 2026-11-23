@@ -6,11 +6,14 @@ package dev.openhands.devbox.data
  */
 data class ProjectChoice(
     val slug: String,
+    val targetOwner: String,
     val targetShort: String,
     val label: String,
     val description: String,
     val previewUrl: String = "",
-)
+) {
+    val targetRepoFullName: String get() = "$targetOwner/$targetShort"
+}
 
 object Projects {
     /**
@@ -20,12 +23,14 @@ object Projects {
     val alle: List<ProjectChoice> = listOf(
         ProjectChoice(
             slug = "vision",
+            targetOwner = "niknight1403",
             targetShort = "Vision",
             label = "Vision",
             description = "Vision-Analyse, Spezialisten und mobile App gezielt weiterentwickeln.",
         ),
         ProjectChoice(
             slug = "cybersarah-control-center",
+            targetOwner = "niknight1403",
             targetShort = "CyberSarah-Control-Center",
             label = "CyberSarah Control Center",
             description = "Analyse, Optimierung und Qualitätssicherung des Control Centers.",
@@ -33,4 +38,7 @@ object Projects {
     )
 
     fun findBySlug(slug: String): ProjectChoice? = alle.firstOrNull { it.slug == slug }
+
+    fun targetRepoFor(project: ProjectChoice?, fallbackTargetRepo: String): String =
+        project?.targetRepoFullName ?: fallbackTargetRepo
 }
