@@ -25,16 +25,20 @@ data class Settings(
     val controlRepoFullName: String get() = "$controlOwner/$controlRepo"
 
     fun isValid(): Boolean =
-        token.isNotBlank() &&
+        token.isNotBlank() && token == token.trim() &&
             GITHUB_OWNER.matches(controlOwner) &&
-            GITHUB_REPO.matches(controlRepo) &&
+            validRepoName(controlRepo) &&
             validWorkflowPath(workflowFile) &&
-            validRepositoryFullName(targetRepo)
+            validRepositoryFullName(targetRepo) &&
+            maxIterations in 1..3
 
     private fun validRepositoryFullName(value: String): Boolean {
         val parts = value.split("/")
-        return parts.size == 2 && GITHUB_OWNER.matches(parts[0]) && GITHUB_REPO.matches(parts[1])
+        return parts.size == 2 && GITHUB_OWNER.matches(parts[0]) && validRepoName(parts[1])
     }
+
+    private fun validRepoName(value: String): Boolean =
+        GITHUB_REPO.matches(value) && value != "." && value != ".." && !value.startsWith("-")
 
     private fun validWorkflowPath(value: String): Boolean {
         if (!value.endsWith(".yml", ignoreCase = true) && !value.endsWith(".yaml", ignoreCase = true)) {
