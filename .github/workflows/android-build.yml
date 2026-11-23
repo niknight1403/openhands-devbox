@@ -84,7 +84,7 @@ jobs:
           set -euo pipefail
           RELEASE_TAG="${{ inputs.release_tag || github.ref_name }}"
           if [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/main" ]]; then
-            RELEASE_TAG="$(jq -r '.head_commit.message | split("\\n")[0] | sub("^release\\\\(android\\\\): "; "")' "$GITHUB_EVENT_PATH")"
+            RELEASE_TAG="$(jq -r '.head_commit.message | split(": ")[1] | split("\\n")[0]' "$GITHUB_EVENT_PATH")"
           fi
           if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-android$ ]]; then
             echo "::error::Release tag must match vMAJOR.MINOR.PATCH-android"
