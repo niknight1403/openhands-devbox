@@ -22,6 +22,7 @@ alles andere ist bewusst knapp gehalten, damit es gelesen wird.
 - 2026-11-17 | Lauf 44017679223 (failure) | Route openai/openai/gpt-oss-120b | Branch agent/app-devbox-sprint-8-20261117 | PR keiner | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/44017679223]
 - 2026-11-17 | Lauf 44018000273 (failure) | Route openai/openai/gpt-oss-120b | Branch agent/app-devbox-sprint-9-20261117 | PR keiner | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/44018000273]
 - 2026-11-17 | Lauf 44018396997 (failure) | Route openai/openai/gpt-oss-120b | Branch agent/app-devbox-sprint-10-20261117 | PR keiner | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/44018396997]
+- 2026-11-25 | Lauf 45541695758 (failure) | Route keine | Branch agent/app-auto10-202611250341-01 | PR keiner | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/45541695758]
 
 ## Entscheidungen
 
@@ -55,3 +56,4 @@ alles andere ist bewusst knapp gehalten, damit es gelesen wird.
 - 2026-11-17 | Lauf 44017679223 endete mit 'failure'; Ursache im Laufprotokoll prüfen, bevor derselbe Weg erneut versucht wird. [https://github.com/niknight1403/openhands-devbox/actions/runs/44017679223]
 - 2026-11-17 | Lauf 44018000273 endete mit 'failure'; Ursache im Laufprotokoll prüfen, bevor derselbe Weg erneut versucht wird. [https://github.com/niknight1403/openhands-devbox/actions/runs/44018000273]
 - 2026-11-17 | Lauf 44018396997 endete mit 'failure'; Ursache im Laufprotokoll prüfen, bevor derselbe Weg erneut versucht wird. [https://github.com/niknight1403/openhands-devbox/actions/runs/44018396997]
+- 2026-11-25 | Lauf 45541695758 endete mit 'failure'; Ursache im Laufprotokoll prüfen, bevor derselbe Weg erneut versucht wird. [https://github.com/niknight1403/openhands-devbox/actions/runs/45541695758]
