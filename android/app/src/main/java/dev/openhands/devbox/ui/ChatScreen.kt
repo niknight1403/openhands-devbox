@@ -55,7 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 
-private val profiles = listOf("superagent", "implementer", "frontend", "security", "quality")
+private val profiles = listOf("superagent", "swarm", "implementer", "frontend", "security", "quality")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -216,7 +216,7 @@ fun ChatScreen(
                     onPrepare = { task ->
                         draft = task
                         showSwarm = false
-                        onProfileChange("superagent")
+                        onProfileChange("swarm")
                     },
                 )
             } else LazyColumn(
@@ -230,7 +230,7 @@ fun ChatScreen(
                         modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(18.dp)).padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Text("Superagent", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+                        Text(if (profile == "swarm") "Swarm-Auftrag" else "Superagent", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
                         Text(if (busy) "Auftrag läuft" else "Bereit für deinen Auftrag", style = MaterialTheme.typography.labelMedium)
                         Text("Entwicklungsaufgaben", style = MaterialTheme.typography.titleSmall)
                         listOf(
@@ -345,7 +345,7 @@ private fun SwarmWorkspace(modifier: Modifier, busy: Boolean, onPrepare: (String
         item {
             Text("Agenten-Swarm", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
             Text("Master-Orchestrator", style = MaterialTheme.typography.titleMedium)
-            Text("Planungsmodus · Laufzeit noch nicht angebunden", style = MaterialTheme.typography.labelMedium)
+            Text("Zehn Rollen · sequenzielle Ausführung", style = MaterialTheme.typography.labelMedium)
         }
         item {
             OutlinedTextField(
@@ -360,13 +360,11 @@ private fun SwarmWorkspace(modifier: Modifier, busy: Boolean, onPrepare: (String
             Button(
                 enabled = !busy && task.isNotBlank(),
                 onClick = {
-                    onPrepare("Erstelle einen Ausführungsplan für diese Mission: " + task.trim() +
-                        "\nBerücksichtige diese Rollen: " + roles.joinToString { it.first } +
-                        ". Definiere Abhängigkeiten, Tests und Abnahmekriterien. Behaupte keine gestarteten Subagenten.")
+                    onPrepare(task.trim())
                 },
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("Plan im Superagent vorbereiten") }
-            Text("Noch kein paralleler Agentenlauf. Der Auftrag wird als Entwurf vorbereitet.", style = MaterialTheme.typography.labelSmall)
+            ) { Text("Swarm-Auftrag vorbereiten") }
+            Text("Der Auftrag wird als Swarm-Entwurf vorbereitet. Senden startet den Workflow.", style = MaterialTheme.typography.labelSmall)
         }
         items(roles, key = { it.first }) { (name, description) ->
             Column(
@@ -375,7 +373,7 @@ private fun SwarmWorkspace(modifier: Modifier, busy: Boolean, onPrepare: (String
             ) {
                 Text(name, style = MaterialTheme.typography.titleMedium)
                 Text(description, style = MaterialTheme.typography.bodySmall)
-                Text("Rolle geplant · nicht verbunden", style = MaterialTheme.typography.labelSmall)
+                Text("Rolle vorgesehen · Laufstatus im Workflow", style = MaterialTheme.typography.labelSmall)
             }
         }
     }

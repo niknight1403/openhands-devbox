@@ -700,8 +700,7 @@ jobs:
           else
             echo "::warning::Gedächtnis nicht gespeichert (HTTP $code)."
           fi
-          python3 -c "import shutil,sys;shutil.rmtree(sys.argv[1], ignore_errors=True)" "$arbeitsordner"
-\nVorheriger Rollenlauf fehlgeschlagen. Prüfe den vorhandenen Diff und reproduziere den Fehler mit vorhandenen lokalen Checks. Repariere nur bestätigte Ursachen; keine Rechteänderungen, keine kostenpflichtigen Dienste. Führe betroffene Checks erneut aus.'
+          python3 -c "import shutil,sys;shutil.rmtree(sys.argv[1], ignore_errors=True)" "$arbeitsordner"\nVorheriger Rollenlauf fehlgeschlagen. Prüfe den vorhandenen Diff und reproduziere den Fehler mit vorhandenen lokalen Checks. Repariere nur bestätigte Ursachen; keine Rechteänderungen, keine kostenpflichtigen Dienste. Führe betroffene Checks erneut aus.'
                   echo "::warning::Rolle ${role}: ein begrenzter Reparaturversuch ohne Anbieterwechsel."
                   echo "Self-healing: ${role}, Reparaturversuch gestartet" >> "$GITHUB_STEP_SUMMARY"
                   continue
