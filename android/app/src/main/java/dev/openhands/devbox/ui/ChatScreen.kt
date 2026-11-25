@@ -23,6 +23,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.ui.text.style.TextOverflow
@@ -76,6 +80,7 @@ fun ChatScreen(
     onMerge: (Int) -> Unit,
 ) {
     var draft by remember { mutableStateOf("") }
+    var showSwarm by remember { mutableStateOf(false) }
     // Dateien, Fotos und Videos direkt vom Gerät; die App laedt sie danach
     // ins Zielprojekt und gibt die Adressen an den Lauf weiter.
     val dateiAuswahl = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -162,7 +167,7 @@ fun ChatScreen(
                     }
                 }
                 Spacer(Modifier.height(6.dp))
-                Row(verticalAlignment = Alignment.Bottom) {
+                if (!showSwarm) Row(verticalAlignment = Alignment.Bottom) {
                     OutlinedButton(
                         onClick = { dateiAuswahl.launch("*/*") },
                         enabled = !busy,
@@ -192,11 +197,24 @@ fun ChatScreen(
                         ) { Text("Senden") }
                     }
                 }
+                NavigationBar(windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)) {
+                    NavigationBarItem(selected = false, onClick = onOpenDashboard, icon = { Text("⌂") }, label = { Text("Zentrale", maxLines = 1) })
+                    NavigationBarItem(selected = !showSwarm, onClick = { showSwarm = false; if (!busy) onProfileChange("superagent") }, icon = { Text("✦") }, label = { Text("Agent", maxLines = 1) })
+                    NavigationBarItem(selected = showSwarm, onClick = { showSwarm = true }, icon = { Text("◈") }, label = { Text("Swarm", maxLines = 1) })
+                    NavigationBarItem(selected = false, onClick = onOpenProjects, icon = { Text("▣") }, label = { Text("Projekte", maxLines = 1) })
+                    NavigationBarItem(selected = false, onClick = onOpenSettings, icon = { Text("⚙") }, label = { Text("Setup", maxLines = 1) })
+                }
             }
         },
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxWidth()) {
-            LazyColumn(
+            if (showSwarm) {
+                Column(Modifier.weight(1f).fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Agenten-Swarm", style = MaterialTheme.typography.headlineSmall)
+                    Text("Orchestrierung noch nicht integriert. Hier werden später Aufgaben und Subagenten angezeigt.")
+                    OutlinedButton(onClick = { showSwarm = false }) { Text("Zum Superagent") }
+                }
+            } else LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
@@ -206,10 +224,11 @@ fun ChatScreen(
                     MessageBubble(message, onOpen = { url -> uriHandler.openUri(url) }, onMerge = onMerge)
                 }
             }
-            HorizontalDivider()
-            Row(
+            if (!showSwarm) HorizontalDivider()
+            if (!showSwarm) Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 12.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
