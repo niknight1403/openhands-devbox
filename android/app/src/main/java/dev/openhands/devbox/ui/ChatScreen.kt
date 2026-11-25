@@ -90,7 +90,7 @@ fun ChatScreen(
     val uriHandler = LocalUriHandler.current
 
     LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
+        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size)
     }
 
     Scaffold(
@@ -179,7 +179,7 @@ fun ChatScreen(
                         modifier = Modifier
                             .weight(1f)
                             .heightIn(min = 56.dp, max = 160.dp),
-                        placeholder = { Text("Was soll gebaut oder repariert werden?") },
+                        placeholder = { Text("Auftrag eingeben") },
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                         maxLines = 5,
                     )
@@ -188,6 +188,7 @@ fun ChatScreen(
                         OutlinedButton(onClick = onStop) { Text("Stop") }
                     } else {
                         Button(
+                            enabled = draft.isNotBlank(),
                             onClick = {
                                 if (draft.isNotBlank()) {
                                     onSend(draft)
@@ -220,6 +221,28 @@ fun ChatScreen(
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                item(key = "superagent-controls") {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(18.dp)).padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text("Superagent", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+                        Text(if (busy) "Auftrag läuft" else "Bereit für deinen Auftrag", style = MaterialTheme.typography.labelMedium)
+                        Text("Entwicklungsaufgaben", style = MaterialTheme.typography.titleSmall)
+                        listOf(
+                            "Projekt analysieren" to "Analysiere das aktive Projekt und priorisiere konkrete Verbesserungen.",
+                            "Fehler beheben" to "Untersuche reproduzierbare Fehler, behebe sie und ergänze Tests.",
+                            "Qualität prüfen" to "Prüfe Build, Tests, Sicherheit und dokumentiere offene Blocker."
+                        ).forEach { (label, prompt) ->
+                            OutlinedButton(
+                                onClick = { draft = prompt },
+                                enabled = !busy,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) { Text(label) }
+                        }
+                        Text("Schnellaufgaben füllen den Entwurf. Senden startet den Auftrag.", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
                 items(messages, key = { it.id }) { message ->
                     MessageBubble(message, onOpen = { url -> uriHandler.openUri(url) }, onMerge = onMerge)
                 }
