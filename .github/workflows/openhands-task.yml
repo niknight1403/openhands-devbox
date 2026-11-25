@@ -22,6 +22,7 @@ on:
         type: choice
         options:
           - superagent
+          - swarm
           - implementer
           - frontend
           - security
@@ -376,7 +377,7 @@ jobs:
           echo "Auftrag: ${#TASK} Zeichen."
           PROFILE="${PROFILE_INPUT:-${DEFAULT_PROFILE:-superagent}}"
           case "$PROFILE" in
-            superagent|implementer|frontend|security|quality) ;;
+            superagent|swarm|implementer|frontend|security|quality) ;;
             *) echo "::error::Unbekanntes Profil"; exit 2 ;;
           esac
           TASK_B64="$(printf '%s' "$TASK" | base64 -w 0)"
@@ -527,6 +528,38 @@ jobs:
           }
 
           case "$PROFILE" in
+            swarm)
+              echo "Swarm 1/10: architect"
+              run_agent architect "Erstelle den Plan in .openhands-plan.md. Lies den gemeinsamen Plan, beschränke dich auf relevante Aufgaben und dokumentiere nicht anwendbare Aufgaben. Keine Veröffentlichung."
+              echo "Swarm architect: CLI erfolgreich" >> "$GITHUB_STEP_SUMMARY"
+              echo "Swarm 2/10: backend"
+              run_agent backend "Implementiere relevante Backend-Aufgaben aus dem Plan. Lies den gemeinsamen Plan, beschränke dich auf relevante Aufgaben und dokumentiere nicht anwendbare Aufgaben. Keine Veröffentlichung."
+              echo "Swarm backend: CLI erfolgreich" >> "$GITHUB_STEP_SUMMARY"
+              echo "Swarm 3/10: frontend"
+              run_agent frontend "Implementiere relevante Web-Aufgaben. Lies den gemeinsamen Plan, beschränke dich auf relevante Aufgaben und dokumentiere nicht anwendbare Aufgaben. Keine Veröffentlichung."
+              echo "Swarm frontend: CLI erfolgreich" >> "$GITHUB_STEP_SUMMARY"
+              echo "Swarm 4/10: android"
+              run_agent android "Implementiere relevante Android-Aufgaben. Lies den gemeinsamen Plan, beschränke dich auf relevante Aufgaben und dokumentiere nicht anwendbare Aufgaben. Keine Veröffentlichung."
+              echo "Swarm android: CLI erfolgreich" >> "$GITHUB_STEP_SUMMARY"
+              echo "Swarm 5/10: ux"
+              run_agent ux "Prüfe und verbessere relevante Bedienbarkeit. Lies den gemeinsamen Plan, beschränke dich auf relevante Aufgaben und dokumentiere nicht anwendbare Aufgaben. Keine Veröffentlichung."
+              echo "Swarm ux: CLI erfolgreich" >> "$GITHUB_STEP_SUMMARY"
+              echo "Swarm 6/10: routing"
+              run_agent routing "Prüfe relevante Modellrouten und Kostenbegrenzungen. Lies den gemeinsamen Plan, beschränke dich auf relevante Aufgaben und dokumentiere nicht anwendbare Aufgaben. Keine Veröffentlichung."
+              echo "Swarm routing: CLI erfolgreich" >> "$GITHUB_STEP_SUMMARY"
+              echo "Swarm 7/10: integration"
+              run_agent integration "Prüfe relevante API- und Werkzeugintegration. Lies den gemeinsamen Plan, beschränke dich auf relevante Aufgaben und dokumentiere nicht anwendbare Aufgaben. Keine Veröffentlichung."
+              echo "Swarm integration: CLI erfolgreich" >> "$GITHUB_STEP_SUMMARY"
+              echo "Swarm 8/10: security"
+              run_agent security "Prüfe den Diff auf Sicherheitsfehler und behebe bestätigte Probleme. Lies den gemeinsamen Plan, beschränke dich auf relevante Aufgaben und dokumentiere nicht anwendbare Aufgaben. Keine Veröffentlichung."
+              echo "Swarm security: CLI erfolgreich" >> "$GITHUB_STEP_SUMMARY"
+              echo "Swarm 9/10: testing"
+              run_agent testing "Führe relevante Tests aus und behebe bestätigte Regressionen. Lies den gemeinsamen Plan, beschränke dich auf relevante Aufgaben und dokumentiere nicht anwendbare Aufgaben. Keine Veröffentlichung."
+              echo "Swarm testing: CLI erfolgreich" >> "$GITHUB_STEP_SUMMARY"
+              echo "Swarm 10/10: devops"
+              run_agent devops "Prüfe abschließend Build, Diff und Abnahmekriterien; melde Blocker. Lies den gemeinsamen Plan, beschränke dich auf relevante Aufgaben und dokumentiere nicht anwendbare Aufgaben. Keine Veröffentlichung."
+              echo "Swarm devops: CLI erfolgreich" >> "$GITHUB_STEP_SUMMARY"
+              ;;
             superagent)
               run_agent architect "Analysiere Aufgabe und Repo. Schreibe einen knappen, ausführbaren Plan ausschließlich nach .openhands-plan.md. Ändere in dieser Phase keinen Produktcode. Nenne betroffene Dateien, Risiken und passende Checks."
               run_agent implementer "Lies .openhands-plan.md. Implementiere den Auftrag vollständig innerhalb des Plans. Verwende vorhandene Projektkonventionen und führe passende Checks aus. Schreibe keinen Commit."
