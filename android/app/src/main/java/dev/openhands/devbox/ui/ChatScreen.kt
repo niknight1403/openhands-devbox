@@ -23,6 +23,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -90,22 +93,28 @@ fun ChatScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("OpenHands Devbox", fontWeight = FontWeight.SemiBold)
+                        Text("Nebula Command", fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(
                             text = statusText,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 },
                 actions = {
-                    TextButton(onClick = onOpenDashboard) { Text("Zentrale") }
-                    TextButton(onClick = onOpenProjects) { Text("Projekte") }
-                    TextButton(onClick = onOpenLiveApp) { Text("Live App") }
-                    if (runUrl != null) {
-                        TextButton(onClick = { runUrl.let { uriHandler.openUri(it) } }) { Text("Lauf") }
+                    var expanded by remember { mutableStateOf(false) }
+                    TextButton(onClick = { expanded = true }) { Text("Menü") }
+                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        DropdownMenuItem(text = { Text("Zentrale") }, onClick = { expanded = false; onOpenDashboard() })
+                        DropdownMenuItem(text = { Text("Projekte") }, onClick = { expanded = false; onOpenProjects() })
+                        DropdownMenuItem(text = { Text("Live App") }, onClick = { expanded = false; onOpenLiveApp() })
+                        if (runUrl != null) {
+                            DropdownMenuItem(text = { Text("Lauf") }, onClick = { expanded = false; uriHandler.openUri(runUrl) })
+                        }
+                        DropdownMenuItem(text = { Text("Einstellungen") }, onClick = { expanded = false; onOpenSettings() })
                     }
-                    TextButton(onClick = onOpenSettings) { Text("Einstellungen") }
                 },
             )
         },
