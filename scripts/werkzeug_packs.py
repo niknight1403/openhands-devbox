@@ -17,6 +17,23 @@ PACKS = {
 }
 
 
+def select_packs(task: str, profile: str = "superagent") -> tuple[str, ...]:
+    """Deterministic selection from the local allowlist; no external installation."""
+    if profile == "swarm":
+        return tuple(PACKS)
+    selected = {"entwicklung", "qualitaet"}
+    normalized = task.casefold()
+    if profile == "frontend" or any(word in normalized for word in (
+        "frontend", "design", "android", "compose", "oberfläche", "ui", "ux", "layout"
+    )):
+        selected.add("oberflaeche")
+    if any(word in normalized for word in (
+        "api", "mcp", "connector", "integration", "llm", "routing", "werkzeug", "plugin"
+    )):
+        selected.add("integrationen")
+    return tuple(pack for pack in PACKS if pack in selected)
+
+
 def install(pack: str, target: Path, source: Path = SOURCE, skip_existing: bool = False) -> dict:
     """Kopiert ausschließlich geprüfte lokale Skills; vorhandene bleiben unangetastet."""
     if pack not in PACKS:
@@ -60,9 +77,22 @@ def main() -> int:
     parser.add_argument("--pack", choices=PACKS)
     parser.add_argument("--target", type=Path)
     parser.add_argument("--skip-existing", action="store_true", help="Vorhandene Skills im Ziel erhalten")
+    parser.add_argument("--auto", action="store_true", help="Packs anhand des Auftrags auswählen")
+    parser.add_argument("--task", default="")
+    parser.add_argument("--profile", default="superagent")
     args = parser.parse_args()
     if args.list:
         print(json.dumps(PACKS, ensure_ascii=False, indent=2))
+        return 0
+    if args.auto:
+        if not args.target or args.pack:
+            parser.error("--auto benötigt --target und darf nicht mit --pack kombiniert werden")
+        try:
+            reports = [install(pack, args.target, skip_existing=True)
+                       for pack in select_packs(args.task, args.profile)]
+            print(json.dumps(reports, ensure_ascii=False))
+        except (ValueError, OSError) as error:
+            parser.exit(2, f"Fehler: {error}\n")
         return 0
     if not args.pack or not args.target:
         parser.error("--pack und --target sind für die Installation erforderlich")

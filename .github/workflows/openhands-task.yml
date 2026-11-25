@@ -322,13 +322,6 @@ jobs:
           uv tool install openhands --python 3.12
           openhands --version
 
-      - name: Skills-Pack in das Zielprojekt übernehmen
-        run: |
-          for pack in entwicklung qualitaet oberflaeche integrationen; do
-            python3 control/scripts/werkzeug_packs.py \
-              --pack "$pack" --target workspace --skip-existing
-          done
-
       - name: Plugin-Packs laut Autopilot-Konfiguration übernehmen
         continue-on-error: true
         working-directory: control
@@ -385,6 +378,12 @@ jobs:
             echo "TASK_B64=$TASK_B64"
             echo "PROFILE=$PROFILE"
           } >> "$GITHUB_ENV"
+
+      - name: Auftragsbezogene Skills installieren
+        run: |
+          set -euo pipefail
+          TASK="$(printf '%s' "$TASK_B64" | base64 --decode)"
+          python3 control/scripts/werkzeug_packs.py --auto --target workspace --task "$TASK" --profile "$PROFILE"
 
       - name: Gratis-Route jagen
         id: route
