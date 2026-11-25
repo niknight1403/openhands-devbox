@@ -231,7 +231,7 @@ def parse_openrouter_free_models(payload: object, min_context: int = DEFAULT_MIN
         if not isinstance(pricing, dict):
             continue
         free = _price_is_zero(pricing.get("prompt")) and _price_is_zero(pricing.get("completion"))
-        if not free and not model_id.endswith(":free"):
+        if not free:
             continue
         context = entry.get("context_length")
         context_length = int(context) if isinstance(context, (int, float)) else 0
@@ -529,8 +529,15 @@ def build_candidates(
     forced = forced_candidates(env.get("MODEL_INPUT") or env.get("HUNTER_MODEL") or "")
     forced = [info for info in forced if info.label not in exclude and info.model not in exclude]
     if forced:
-        # Ausdrücklicher Wunsch schlägt die Jagd: nur diese Route wird geprüft.
-        return forced
+        if include_paid:
+            return forced
+        # Free-only requests must not bypass pricing discovery or paid-provider policy.
+        forced = [info for info in forced if not PROVIDER_BY_NAME[info.provider].paid]
+        forced = [info for info in forced if info.provider != "openrouter" or any(
+            candidate.model == info.model for candidate in discover(timeout, env)
+        )]
+        if forced:
+            return forced
 
     prefer = tuple(name.strip() for name in env.get("HUNTER_PREFER", "").split(",") if name.strip())
     candidates: list[ModelInfo] = []
@@ -550,6 +557,8 @@ def build_candidates(
         info
         for info in load_status_hints(env)
         if info.label not in exclude and info.model not in exclude and usable(info, env)
+        and (include_paid or not PROVIDER_BY_NAME[info.provider].paid)
+        and (info.provider != "openrouter" or any(candidate.provider == info.provider and candidate.model == info.model for candidate in candidates))
     ]
     hint_keys = {(info.provider, info.model) for info in hints}
     filtered = [
@@ -653,7 +662,7 @@ def load_status_hints(env: dict[str, str]) -> list[ModelInfo]:
         return []
     ranked: list[tuple[int, ModelInfo]] = []
     for entry in entries:
-        if not isinstance(entry, dict) or not entry.get("chat_ok"):
+        if not isinstance(entry, dict) or not entry.get("chat_ok") or not entry.get("tools_ok"):
             continue
         provider = entry.get("provider")
         model = entry.get("model")
