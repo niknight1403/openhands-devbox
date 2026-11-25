@@ -210,11 +210,15 @@ fun ChatScreen(
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxWidth()) {
             if (showSwarm) {
-                Column(Modifier.weight(1f).fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Agenten-Swarm", style = MaterialTheme.typography.headlineSmall)
-                    Text("Orchestrierung noch nicht integriert. Hier werden später Aufgaben und Subagenten angezeigt.")
-                    OutlinedButton(onClick = { showSwarm = false }) { Text("Zum Superagent") }
-                }
+                SwarmWorkspace(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    busy = busy,
+                    onPrepare = { task ->
+                        draft = task
+                        showSwarm = false
+                        onProfileChange("superagent")
+                    },
+                )
             } else LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxWidth().weight(1f),
@@ -313,6 +317,66 @@ private fun MessageBubble(message: ChatMessage, onOpen: (String) -> Unit, onMerg
                 style = MaterialTheme.typography.labelSmall,
                 fontFamily = FontFamily.Monospace,
             )
+        }
+    }
+}
+
+
+@Composable
+private fun SwarmWorkspace(modifier: Modifier, busy: Boolean, onPrepare: (String) -> Unit) {
+    var task by remember { mutableStateOf("") }
+    val roles = listOf(
+        "Architektur" to "Systemdesign und Planung",
+        "Backend" to "Server und Datenbanken",
+        "Frontend" to "Web-Oberflächen",
+        "Android" to "Mobile Entwicklung",
+        "UI/UX" to "Design und Bedienbarkeit",
+        "Security" to "Sicherheitsprüfung",
+        "Testing" to "Automatisierte Tests",
+        "LLM Routing" to "Kostenlose Modellrouten",
+        "Integration" to "APIs und Werkzeuge",
+        "DevOps" to "Build und Release",
+    )
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        item {
+            Text("Agenten-Swarm", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+            Text("Master-Orchestrator", style = MaterialTheme.typography.titleMedium)
+            Text("Planungsmodus · Laufzeit noch nicht angebunden", style = MaterialTheme.typography.labelMedium)
+        }
+        item {
+            OutlinedTextField(
+                value = task,
+                onValueChange = { task = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Swarm-Mission") },
+                minLines = 2,
+                maxLines = 5,
+                enabled = !busy,
+            )
+            Button(
+                enabled = !busy && task.isNotBlank(),
+                onClick = {
+                    onPrepare("Erstelle einen Ausführungsplan für diese Mission: " + task.trim() +
+                        "\nBerücksichtige diese Rollen: " + roles.joinToString { it.first } +
+                        ". Definiere Abhängigkeiten, Tests und Abnahmekriterien. Behaupte keine gestarteten Subagenten.")
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Plan im Superagent vorbereiten") }
+            Text("Noch kein paralleler Agentenlauf. Der Auftrag wird als Entwurf vorbereitet.", style = MaterialTheme.typography.labelSmall)
+        }
+        items(roles, key = { it.first }) { (name, description) ->
+            Column(
+                Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp)).padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(name, style = MaterialTheme.typography.titleMedium)
+                Text(description, style = MaterialTheme.typography.bodySmall)
+                Text("Rolle geplant · nicht verbunden", style = MaterialTheme.typography.labelSmall)
+            }
         }
     }
 }
