@@ -44,6 +44,42 @@ data class Job(
 data class JobsResponse(val jobs: List<Job> = emptyList())
 
 @Serializable
+data class AutopilotStatus(
+    @SerialName("generated_at") val generatedAt: String? = null,
+    val mode: String? = null,
+    val packs: List<AutopilotPack> = emptyList(),
+    val routes: List<AutopilotRoute> = emptyList(),
+    val best: AutopilotRoute? = null,
+    @SerialName("tool_probe") val toolProbe: Boolean? = null,
+    val warnings: List<String> = emptyList(),
+)
+
+@Serializable
+data class AutopilotRoute(
+    val provider: String? = null,
+    val model: String? = null,
+    @SerialName("chat_ok") val chatOk: Boolean = false,
+    @SerialName("tools_ok") val toolsOk: Boolean = false,
+    @SerialName("latency_ms") val latencyMs: Int? = null,
+)
+
+@Serializable
+data class AutopilotPack(
+    val name: String = "",
+    val ok: Boolean = false,
+    val reason: String? = null,
+    val installed: Int = 0,
+    val skills: List<AutopilotSkill> = emptyList(),
+)
+
+@Serializable
+data class AutopilotSkill(
+    val name: String = "",
+    val ok: Boolean = false,
+    val reason: String? = null,
+)
+
+@Serializable
 data class PullHead(val ref: String = "", val sha: String? = null)
 
 @Serializable

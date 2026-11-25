@@ -4,7 +4,7 @@ Eine mobile, autonome Entwicklungsumgebung auf Basis der offiziellen OpenHands A
 
 ## Was enthalten ist
 
-- **Android-App:** installierbare Steuer-App (`android/`). Eine Chat-Eingabe startet einen vollständigen Entwicklungsdurchlauf, zeigt die Agentenschritte live, öffnet den Draft-PR und kann ihn im Autonom-Modus mergen und nachbessern lassen. Die **Projektzentrale** bündelt mehrere freigegebene Projekte, der Bereich **Live App** öffnet die konfigurierte App-Vorschau direkt in der App.
+- **Android-App:** installierbare Steuer-App (`android/`). Eine Chat-Eingabe startet einen vollständigen Entwicklungsdurchlauf, zeigt die Agentenschritte live, öffnet den Draft-PR und kann ihn im Autonom-Modus mergen und nachbessern lassen. Der neue Bereich **Agenten-Swarm** bündelt Superagent-Phasen, Spezialprofile, den echten Autopilot-Status und einen manuellen Fähigkeitscheck. Die **Projektzentrale** bündelt mehrere freigegebene Projekte, der Bereich **Live App** öffnet die konfigurierte App-Vorschau direkt in der App.
 - **Agent Canvas:** aktuelle OpenHands-Steueroberfläche mit LLM-/Agent-Profilen, MCP-Server-Einstellungen und Projektkontext.
 - **Superagenten-Lauf:** drei getrennte OpenHands-CLI-Durchläufe — Architektur/Plan, Implementierung und Qualitätsreview — mit gemeinsamem Workspace.
 - **Rollenprofile:** zusätzlich auswählbare Modi für Implementierung, Frontend, Sicherheit und Qualität.

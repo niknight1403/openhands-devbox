@@ -11,6 +11,7 @@ alles andere ist bewusst knapp gehalten, damit es gelesen wird.
 
 ## Läufe
 
+- 2026-11-23 | Agenten-Swarm-Zentrale mit Superagent-Phasen, Profilwahl, Autopilot-Status und manuellem Fähigkeitsscan ergänzt; Kompetenz-Wächter dokumentiert. `git diff --check` sauber. Python: 210 Tests, 1 unabhängiger Fehler in `test_reverts_env_and_private_key_files`; Android-Build mangels SDK nicht ausgeführt. Keine Workflow- oder Secret-Dateien geändert.
 - 2026-11-17 | Profil angelegt; die vorhandene Android-Projektzentrale, Live-App-Ansicht und Free-Route-Hunter-Anbindung sind die Ausgangsbasis für die nächsten Sprints.
 - 2026-11-17 | Lauf 44008918185 (failure) | Route `openai/gpt-oss-120b` | Branch `agent/app-devbox-sprint-1-20261117` | PR keiner | Dateien 0 | Ursache: keine nutzbare Modellroute nach Rate-Limits und veralteten Fallback-IDs. [Lauf](https://github.com/niknight1403/openhands-devbox/actions/runs/44008918185)
 - 2026-11-17 | Lauf 44010545881 (failure) | Route openai/gpt-oss-120b | Branch agent/app-devbox-sprint-2-20261117 | PR keiner | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/44010545881]
@@ -47,7 +48,7 @@ alles andere ist bewusst knapp gehalten, damit es gelesen wird.
 
 - Die neue Route-Hunter-Version muss in den nächsten Sprintläufen verwendet und gegen die verfügbaren Repository-Secrets geprüft werden.
 - Falls alle kostenlosen Provider kontingentbedingt ausfallen, muss ein Mensch Providerkontingent oder zusätzliche gültige kostenlose Routen bereitstellen.
-- Nächster Code-Schritt: Android-Projektzentrale und Live-App-Ansicht mit UI-Tests oder einer prüfbaren Zustandsabstraktion absichern.
+- Nächster Code-Schritt: Android-SDK/CI-Build für Agenten-Swarm und `AutopilotStatusTest` nachholen; anschließend den unabhängigen Fehler `test_reverts_env_and_private_key_files` untersuchen.
 - 2026-11-17 | Lauf 44010545881 endete mit 'failure'; Ursache im Laufprotokoll prüfen, bevor derselbe Weg erneut versucht wird. [https://github.com/niknight1403/openhands-devbox/actions/runs/44010545881]
 - 2026-11-17 | Lauf 44014703130 endete mit 'failure'; Ursache im Laufprotokoll prüfen, bevor derselbe Weg erneut versucht wird. [https://github.com/niknight1403/openhands-devbox/actions/runs/44014703130]
 - 2026-11-17 | Lauf 44016584859 endete mit 'failure'; Ursache im Laufprotokoll prüfen, bevor derselbe Weg erneut versucht wird. [https://github.com/niknight1403/openhands-devbox/actions/runs/44016584859]

@@ -72,6 +72,15 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     var routeDetails by mutableStateOf("")
         private set
 
+    var autopilotStatus by mutableStateOf<dev.openhands.devbox.data.AutopilotStatus?>(null)
+        private set
+
+    var capabilityAuditStatus by mutableStateOf("")
+        private set
+
+    var capabilityAuditBusy by mutableStateOf(false)
+        private set
+
     var recentWorkflowRuns by mutableStateOf<List<dev.openhands.devbox.data.WorkflowRun>>(emptyList())
         private set
 
@@ -170,6 +179,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     /** Liest den zuletzt veröffentlichten Live-Status des LLM-Autopiloten. */
     fun loadRouteStatus() {
         if (settings.token.isBlank()) {
+            autopilotStatus = null
             routeStatus = "GitHub-Token fehlt."
             routeDetails = ""
             return
@@ -182,29 +192,27 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     "status.json",
                     ref = "autopilot/status",
                 )
-                val root = kotlinx.serialization.json.Json.parseToJsonElement(raw)
-                    as? kotlinx.serialization.json.JsonObject
-                    ?: throw IllegalStateException("Ungültiger Statusbericht.")
-                val routes = root["routes"] as? kotlinx.serialization.json.JsonArray
-                    ?: kotlinx.serialization.json.JsonArray(emptyList())
-                val best = root["best"] as? kotlinx.serialization.json.JsonObject
-                val reachable = routes.count { item ->
-                    (item as? kotlinx.serialization.json.JsonObject)?.get("chat_ok")
-                        ?.toString()?.toBoolean() == true
-                }
-                val toolReady = routes.count { item ->
-                    (item as? kotlinx.serialization.json.JsonObject)?.get("tools_ok")
-                        ?.toString()?.toBoolean() == true
-                }
-                if (best == null || best.toString() == "null") {
-                    routeStatus = "Keine bestätigte Route im letzten Bericht."
-                    routeDetails = "$reachable Chat-Routen erreichbar · $toolReady mit Werkzeugtest"
+                val report = kotlinx.serialization.json.Json {
+                    ignoreUnknownKeys = true
+                    isLenient = true
+                }.decodeFromString(dev.openhands.devbox.data.AutopilotStatus.serializer(), raw)
+                autopilotStatus = report
+                val reachable = report.routes.count { it.chatOk }
+                val toolReady = report.routes.count { it.chatOk && it.toolsOk }
+                val best = report.best
+                if (best == null) {
+                    routeStatus = if (report.toolProbe == true && reachable > 0) {
+                        "Keine bestätigte Werkzeugroute im letzten Bericht."
+                    } else {
+                        "Keine erreichbare Route im letzten Bericht."
+                    }
+                    routeDetails = "$reachable Chat-Routen erreichbar · $toolReady mit Werkzeugtest · ${report.generatedAt ?: "Zeitpunkt unbekannt"}"
                 } else {
-                    fun field(key: String) = best[key]?.toString()?.trim('"').orEmpty()
-                    routeStatus = "Beste Route: ${field("provider")} / ${field("model")}"
-                    routeDetails = "$reachable Chat-Routen erreichbar · $toolReady mit Werkzeugaufruf bestätigt · ${field("latency_ms")} ms"
+                    routeStatus = "Beste Route: ${best.provider.orEmpty()} / ${best.model.orEmpty()}"
+                    routeDetails = "$reachable Chat-Routen erreichbar · $toolReady mit Werkzeugaufruf bestätigt · ${best.latencyMs ?: "?"} ms · ${report.generatedAt ?: "Zeitpunkt unbekannt"}"
                 }
             } catch (error: GitHubApi.ApiException) {
+                autopilotStatus = null
                 routeStatus = if (error.code == 404) {
                     "Noch kein Autopilot-Bericht vorhanden."
                 } else {
@@ -212,8 +220,36 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 routeDetails = ""
             } catch (error: Exception) {
+                autopilotStatus = null
                 routeStatus = "Routenstatus nicht verfügbar: ${error.message ?: "unbekannter Fehler"}"
                 routeDetails = ""
+            }
+        }
+    }
+
+    /** Startet auf ausdrücklichen Tastendruck den vorhandenen LLM- und Tool-Call-Audit. */
+    fun startCapabilityAudit() {
+        if (capabilityAuditBusy) return
+        if (settings.token.isBlank()) {
+            capabilityAuditStatus = "GitHub-Token fehlt. Bitte zuerst in den Einstellungen hinterlegen."
+            return
+        }
+        capabilityAuditBusy = true
+        capabilityAuditStatus = "Autopilot-Prüfung wird gestartet ..."
+        viewModelScope.launch {
+            try {
+                GitHubApi { settings.token }.dispatch(
+                    controlRepo = settings.controlRepoFullName,
+                    workflowFile = "llm-autopilot.yml",
+                    ref = "main",
+                    inputs = mapOf("tool_probe" to "true"),
+                )
+                capabilityAuditStatus = "Prüfung gestartet. Ergebnis nach Abschluss hier aktualisieren."
+                loadRecentWorkflowRuns()
+            } catch (error: Exception) {
+                capabilityAuditStatus = "Prüfung konnte nicht gestartet werden: ${error.message ?: "unbekannter Fehler"}"
+            } finally {
+                capabilityAuditBusy = false
             }
         }
     }

@@ -26,6 +26,12 @@ Die Rollen sind getrennte Arbeitsphasen, keine Behauptung paralleler Agenten, fa
 - Prüfe vorhandene Tests, Linter und Build-Kommandos. Führe passende, verfügbare Checks aus und berichte ehrlich über ausgelassene oder fehlgeschlagene Checks.
 - Halte Änderungen nachvollziehbar. Verberge keine Fehler, entferne keine Nutzerinhalte und behaupte keine Validierung, die nicht stattgefunden hat.
 
+## Kompetenz-Wächter
+
+Prüfe vor jeder Aufgabe anhand von Projektmanifest, Auftrag und Prüfplan, welche Entwicklungs-, Test-, Recherche- und Build-Werkzeuge tatsächlich benötigt werden. Nutze vorhandene lokale Skill-Packs und die konfigurierte, zuletzt geprüfte Modellroute; für öffentliche Web-Recherche steht `control/scripts/webtools.py` bereit. Unterscheide zwischen einer Datei im Repository und einem Werkzeug, das in der aktuellen Laufzeit wirklich verfügbar ist.
+
+Fehlen normale projektlokale Abhängigkeiten, installiere sie mit dem vorhandenen Paketmanager, aktualisiere Manifest und Lockfile und prüfe die Änderung. Verwende keine unbestätigten Modellrouten und weiche im Offline-Modus nie auf Cloud-Anbieter aus. Externe MCP-Server, Konten, Berechtigungen, Secrets und unbekannte ausführbare Plugins werden nicht eigenmächtig eingerichtet; nutze nur freigegebene Kataloge und verlange bei nötigem Zugriff eine konkrete menschliche Freigabe. Ist eine notwendige Fähigkeit trotz sicherer Fallbacks nicht verfügbar, stoppe den davon abhängigen Schritt und benenne den belegten Blocker, statt Verfügbarkeit oder ein erfolgreiches Ergebnis vorzutäuschen.
+
 ## Modellroute
 
 Alle Modellaufrufe laufen über die eine Route aus `config/local-llm.env` (`LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY`, `LLM_OFFLINE`). Baue keine zusätzliche Anbieterauswahl, keinen zweiten Endpunkt und keinen Cloud-Ersatzweg ein. Wenn die lokale Route nicht antwortet, melde den Ausfall; weiche nicht auf einen anderen Anbieter aus. Details in `docs/LOCAL-OFFLINE-LLM.md`.

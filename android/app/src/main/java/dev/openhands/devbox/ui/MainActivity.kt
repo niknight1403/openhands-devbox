@@ -38,6 +38,7 @@ private fun DevboxApp(viewModel: ChatViewModel = viewModel()) {
             model = viewModel.settings.model,
             profile = viewModel.settings.profile,
             onOpenChat = { screen = AppScreen.Chat },
+            onOpenAgentSwarm = { screen = AppScreen.AgentSwarm },
             onOpenProjects = { screen = AppScreen.Projects },
             onOpenSettings = { screen = AppScreen.Settings },
             onOpenLiveApp = { screen = AppScreen.LiveApp },
@@ -50,6 +51,29 @@ private fun DevboxApp(viewModel: ChatViewModel = viewModel()) {
                 screen = AppScreen.Chat
             },
             onTest = viewModel::testConnection,
+            onBack = { screen = AppScreen.Dashboard },
+        )
+        AppScreen.AgentSwarm -> AgentSwarmScreen(
+            profile = viewModel.settings.profile,
+            busy = viewModel.busy,
+            statusText = viewModel.statusText,
+            routeStatus = viewModel.routeStatus,
+            routeDetails = viewModel.routeDetails,
+            autopilotStatus = viewModel.autopilotStatus,
+            auditStatus = viewModel.capabilityAuditStatus,
+            auditBusy = viewModel.capabilityAuditBusy,
+            workflowRuns = viewModel.recentWorkflowRuns,
+            workflowRunsStatus = viewModel.workflowRunsStatus,
+            onRefresh = {
+                viewModel.loadRouteStatus()
+                viewModel.loadRecentWorkflowRuns()
+            },
+            onStartAudit = viewModel::startCapabilityAudit,
+            onSelectProfile = { selected ->
+                viewModel.updateSettings(viewModel.settings.copy(profile = selected))
+                screen = AppScreen.Chat
+            },
+            onOpenChat = { screen = AppScreen.Chat },
             onBack = { screen = AppScreen.Dashboard },
         )
         AppScreen.Projects -> ProjectHubScreen(
@@ -101,4 +125,4 @@ private fun DevboxApp(viewModel: ChatViewModel = viewModel()) {
     }
 }
 
-private enum class AppScreen { Dashboard, Chat, Projects, LiveApp, Settings }
+private enum class AppScreen { Dashboard, AgentSwarm, Chat, Projects, LiveApp, Settings }

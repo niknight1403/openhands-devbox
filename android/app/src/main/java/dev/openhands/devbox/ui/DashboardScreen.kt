@@ -34,6 +34,7 @@ fun DashboardScreen(
     model: String,
     profile: String,
     onOpenChat: () -> Unit,
+    onOpenAgentSwarm: () -> Unit,
     onOpenProjects: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenLiveApp: () -> Unit,
@@ -83,9 +84,10 @@ fun DashboardScreen(
             }
             Text("KERNMODULE", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
             ModuleCard("01  SUPERAGENT CHAT", "Aufträge starten, Rollen wählen und GitHub-Läufe verfolgen.", "AUFTRAG ÖFFNEN", onOpenChat)
-            ModuleCard("02  PROJEKTZENTRALE", "Aktives Projekt: ${selectedProject.ifBlank { "Keines ausgewählt" }}. Projektkontext und Live-App.", "PROJEKTE ÖFFNEN", onOpenProjects)
-            ModuleCard("03  FREE ROUTE HUNTER", routeDescription + ". Live-Ergebnisse werden erst nach einem echten Prüflauf bestätigt.", "ROUTEN-KONFIGURATION", onOpenSettings)
-            ModuleCard("04  LIVE VORSCHAU", "Öffne die konfigurierte Projektvorschau.", "VORSCHAU ÖFFNEN", onOpenLiveApp)
+            ModuleCard("02  AGENTEN-SWARM & KOMPETENZEN", "Agentenphasen, Werkzeugrouten und geprüfte Fähigkeiten überwachen.", "SWARM ÖFFNEN", onOpenAgentSwarm)
+            ModuleCard("03  PROJEKTZENTRALE", "Aktives Projekt: ${selectedProject.ifBlank { "Keines ausgewählt" }}. Projektkontext und Live-App.", "PROJEKTE ÖFFNEN", onOpenProjects)
+            ModuleCard("04  FREE ROUTE HUNTER", routeDescription + ". Live-Ergebnisse werden erst nach einem echten Prüflauf bestätigt.", "ROUTEN-KONFIGURATION", onOpenSettings)
+            ModuleCard("05  LIVE VORSCHAU", "Öffne die konfigurierte Projektvorschau.", "VORSCHAU ÖFFNEN", onOpenLiveApp)
             Card(
                 modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenSettings),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
