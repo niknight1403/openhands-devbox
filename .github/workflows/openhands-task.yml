@@ -479,14 +479,17 @@ jobs:
             local role="$1"
             local instructions="$2"
             local attempt=0
+            local repair_attempt=0
+            local invocation=0
             local prompt
             local log_path
             local exit_code
             while : ; do
               prompt="${BASE_PROMPT}"$'\n\n## Deine Rolle in diesem Durchlauf\n'"${instructions}"
-              log_path="$RUNNER_TEMP/openhands-${role}-${attempt}.log"
+              invocation=$((invocation + 1))
+              log_path="$RUNNER_TEMP/openhands-${role}-${invocation}.log"
               echo "::group::OpenHands-Rolle: ${role} (Route ${LLM_ROUTE_NAME:-unbekannt}, Versuch $((attempt + 1)))"
-              stand="$RUNNER_TEMP/openhands-${role}-${attempt}.state"
+              stand="$RUNNER_TEMP/openhands-${role}-${invocation}.state"
               python3 control/scripts/openhands_events.py --record "$stand" > /dev/null
               cd workspace
               if openhands --headless --override-with-envs -t "$prompt" >"$log_path" 2>&1; then
@@ -504,7 +507,206 @@ jobs:
               fi
               # Ein Fehler ohne Routenbezug wird durch einen Anbieterwechsel nicht besser.
               if [ "$ereignis_code" -eq 4 ]; then
-                echo "::error::OpenHands-Rolle ${role} scheiterte an einem Fehler ohne Routenbezug; ein Anbieterwechsel hilft hier nicht."
+                if [ "$repair_attempt" -eq 0 ]; then
+                  repair_attempt=1
+                  instructions="$instructions"
+              if [ "$attempt" -ge "$ROUTE_RETRIES" ]; then
+                echo "::error::OpenHands-Rolle ${role} fehlgeschlagen; sensible Roh-Logs werden nicht ausgegeben."
+                return 1
+              fi
+              attempt=$((attempt + 1))
+              export HUNTER_EXCLUDE="${HUNTER_EXCLUDE:+${HUNTER_EXCLUDE},}${LLM_ROUTE_NAME:-}"
+              echo "::warning::Route ${LLM_ROUTE_NAME:-unbekannt} ausgefallen; der Autopilot sucht Ersatz (Versuch ${attempt}/${ROUTE_RETRIES})."
+              if ! python3 control/scripts/free_route_hunter.py \
+                --env-file "$RUNNER_TEMP/route.env" \
+                --shell-export \
+                --report "$RUNNER_TEMP/route-report-${role}-${attempt}.json"; then
+                echo "::error::Keine Ersatzroute verfuegbar; Rolle ${role} wird abgebrochen."
+                echo "::error::Keine Ersatzroute verfuegbar. Pruefe die Erreichbarkeit der Anbieter und hinterlege mindestens einen gueltigen Modellschluessel, z. B. GROQ_API_KEY, CEREBRAS_API_KEY, GEMINI_API_KEY oder OPENROUTER_API_KEY."
+                return 1
+              fi
+              . "$RUNNER_TEMP/route.env"
+            done
+          }
+
+          case "$PROFILE" in
+            swarm)
+              echo "Swarm 1/10: architect"
+              run_agent architect "Erstelle den Plan in .openhands-plan.md. Lies den gemeinsamen Plan, beschränke dich auf relevante Aufgaben und dokumentiere nicht anwendbare Aufgaben. Keine Veröffentlichung."
+              echo "Swarm architect: CLI erfolgreich" >> "$GITHUB_STEP_SUMMARY"
+              echo "Swarm 2/10: backend"
+              run_agent backend "Implementiere relevante Backend-Aufgaben aus dem Plan. Lies den gemeinsamen Plan, beschränke dich auf relevante Aufgaben und dokumentiere nicht anwendbare Aufgaben. Keine Veröffentlichung."
+              echo "Swarm backend: CLI erfolgreich" >> "$GITHUB_STEP_SUMMARY"
+              echo "Swarm 3/10: frontend"
+              run_agent frontend "Implementiere relevante Web-Aufgaben. Lies den gemeinsamen Plan, beschränke dich auf relevante Aufgaben und dokumentiere nicht anwendbare Aufgaben. Keine Veröffentlichung."
+              echo "Swarm frontend: CLI erfolgreich" >> "$GITHUB_STEP_SUMMARY"
+              echo "Swarm 4/10: android"
+              run_agent android "Implementiere relevante Android-Aufgaben. Lies den gemeinsamen Plan, beschränke dich auf relevante Aufgaben und dokumentiere nicht anwendbare Aufgaben. Keine Veröffentlichung."
+              echo "Swarm android: CLI erfolgreich" >> "$GITHUB_STEP_SUMMARY"
+              echo "Swarm 5/10: ux"
+              run_agent ux "Prüfe und verbessere relevante Bedienbarkeit. Lies den gemeinsamen Plan, beschränke dich auf relevante Aufgaben und dokumentiere nicht anwendbare Aufgaben. Keine Veröffentlichung."
+              echo "Swarm ux: CLI erfolgreich" >> "$GITHUB_STEP_SUMMARY"
+              echo "Swarm 6/10: routing"
+              run_agent routing "Prüfe relevante Modellrouten und Kostenbegrenzungen. Lies den gemeinsamen Plan, beschränke dich auf relevante Aufgaben und dokumentiere nicht anwendbare Aufgaben. Keine Veröffentlichung."
+              echo "Swarm routing: CLI erfolgreich" >> "$GITHUB_STEP_SUMMARY"
+              echo "Swarm 7/10: integration"
+              run_agent integration "Prüfe relevante API- und Werkzeugintegration. Lies den gemeinsamen Plan, beschränke dich auf relevante Aufgaben und dokumentiere nicht anwendbare Aufgaben. Keine Veröffentlichung."
+              echo "Swarm integration: CLI erfolgreich" >> "$GITHUB_STEP_SUMMARY"
+              echo "Swarm 8/10: security"
+              run_agent security "Prüfe den Diff auf Sicherheitsfehler und behebe bestätigte Probleme. Lies den gemeinsamen Plan, beschränke dich auf relevante Aufgaben und dokumentiere nicht anwendbare Aufgaben. Keine Veröffentlichung."
+              echo "Swarm security: CLI erfolgreich" >> "$GITHUB_STEP_SUMMARY"
+              echo "Swarm 9/10: testing"
+              run_agent testing "Führe relevante Tests aus und behebe bestätigte Regressionen. Lies den gemeinsamen Plan, beschränke dich auf relevante Aufgaben und dokumentiere nicht anwendbare Aufgaben. Keine Veröffentlichung."
+              echo "Swarm testing: CLI erfolgreich" >> "$GITHUB_STEP_SUMMARY"
+              echo "Swarm 10/10: devops"
+              run_agent devops "Prüfe abschließend Build, Diff und Abnahmekriterien; melde Blocker. Lies den gemeinsamen Plan, beschränke dich auf relevante Aufgaben und dokumentiere nicht anwendbare Aufgaben. Keine Veröffentlichung."
+              echo "Swarm devops: CLI erfolgreich" >> "$GITHUB_STEP_SUMMARY"
+              ;;
+            superagent)
+              run_agent architect "Analysiere Aufgabe und Repo. Schreibe einen knappen, ausführbaren Plan ausschließlich nach .openhands-plan.md. Ändere in dieser Phase keinen Produktcode. Nenne betroffene Dateien, Risiken und passende Checks."
+              run_agent implementer "Lies .openhands-plan.md. Implementiere den Auftrag vollständig innerhalb des Plans. Verwende vorhandene Projektkonventionen und führe passende Checks aus. Schreibe keinen Commit."
+              run_agent reviewer "Prüfe den finalen Diff gegen Nutzerauftrag und .openhands-plan.md. Suche nach bestätigten funktionalen, Sicherheits- und Regressionfehlern. Behebe nur eng begrenzte bestätigte Probleme und führe betroffene Checks erneut aus."
+              ;;
+            implementer)
+              run_agent implementer "Plane kurz intern und setze dann die konkrete Nutzeraufgabe im vorhandenen Stil um. Prüfe den Diff und führe passende vorhandene Tests aus."
+              ;;
+            frontend)
+              run_agent frontend "Fokussiere auf die konkret angefragte Oberfläche. Nutze den Frontend-/UX-Skill, vorhandene Komponenten und responsive Konventionen. Ergänze verständliche Lade-, Leer-, Erfolgs- und Fehlerzustände, wo sie relevant sind. Prüfe die betroffenen Builds oder UI-Checks."
+              ;;
+            security)
+              run_agent security "Fokussiere auf die konkret angefragte Sicherheitsverbesserung. Nutze den Security-Skill. Prüfe geringstmögliche Rechte, Eingaben, Authentifizierung, Secret-Handhabung und sensible Logs. Führe passende Sicherheits- und Regressionchecks aus."
+              ;;
+            quality)
+              run_agent quality "Fokussiere auf Qualität, Stabilität und Fehlerbehebung. Nutze den Quality-Engineering-Skill. Ermittle vorhandene Checks, behebe bestätigte Probleme und führe passende Tests, Lint- und Build-Kommandos aus."
+              ;;
+          esac
+
+
+      - name: Geschützte Pfade wiederherstellen
+        if: always() && steps.target_checkout.outcome == 'success'
+        run: python3 control/scripts/restore-protected-changes.py workspace
+
+      - name: Änderungen als Draft-PR einreichen
+        id: draft_pr
+        if: success()
+        env:
+          PAT: ${{ secrets.OPENHANDS_GH_PAT }}
+          BUILTIN_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Reihenfolge wie in der Vorpruefung: eigener PAT zuerst, sonst der
+          # eingebaute GITHUB_TOKEN. Der Wert bleibt in diesem Schritt.
+          GH_TOKEN="${PAT:-}"
+          if [ -z "$GH_TOKEN" ]; then
+            GH_TOKEN="${BUILTIN_TOKEN:-}"
+          fi
+          export GH_TOKEN
+          cd workspace
+          cleanup() {
+            rm -f "$RUNNER_TEMP/openhands-askpass"
+            unset GH_TOKEN PAT BUILTIN_TOKEN || true
+          }
+          trap cleanup EXIT
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "OpenHands hat keine PR-fähigen Änderungen hinterlassen."
+            echo "PR_URL=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git add -A
+          git commit -m "openhands: ${PROFILE} development update"
+          # shellcheck disable=SC2016 # Variablen werden absichtlich erst im Askpass-Skript ausgewertet.
+          cat > "$RUNNER_TEMP/openhands-askpass" <<'ASKPASS'
+          #!/bin/sh
+          case "$1" in
+            *Username*) printf '%s\n' "x-access-token" ;;
+            *Password*) printf '%s\n' "$GH_TOKEN" ;;
+            *) exit 1 ;;
+          esac
+          ASKPASS
+          chmod 700 "$RUNNER_TEMP/openhands-askpass"
+          GIT_ASKPASS="$RUNNER_TEMP/openhands-askpass" GIT_TERMINAL_PROMPT=0 git push origin "$BRANCH"
+          PR_URL="$(gh pr create \
+            --repo "$TARGET_REPO" \
+            --base main --head "$BRANCH" --draft \
+            --title "OpenHands: ${PROFILE} development update" \
+            --body "Automatisch von der OpenHands Devbox erstellt. Profil: ${PROFILE}. Keine Aufgabeninhalte in PR-Metadaten. Bitte Änderungen und Tests vor dem Merge prüfen.")"
+          echo "PR_URL=$PR_URL" >> "$GITHUB_OUTPUT"
+          {
+            echo "### OpenHands-Lauf"
+            echo ""
+            echo "- Zielprojekt: \`$TARGET_REPO\`"
+            echo "- Profil: \`$PROFILE\`"
+            echo "- Modellroute: \`${LLM_MODEL}\` (${LLM_ROUTE_NAME:-unbekannt})"
+            echo "- Branch: \`$BRANCH\`"
+            echo "- Draft-PR: $PR_URL"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Lauf-Zusammenfassung
+        if: always()
+        run: |
+          {
+            echo "### Ergebnis"
+            echo ""
+            echo "- Zielprojekt: \`$TARGET_REPO\`"
+            echo "- Branch: \`${BRANCH:-nicht angelegt}\`"
+            echo "- Modellroute: \`${LLM_MODEL:-keine}\`${LLM_ROUTE_NAME:+ (${LLM_ROUTE_NAME})}"
+            echo "- GitHub-Zugang: \`${GH_TOKEN_SOURCE:-nicht geprueft}\`"
+            echo "- Lauf: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Projektgedächtnis fortschreiben
+        if: always() && env.PROJECT_NAME != ''
+        continue-on-error: true
+        env:
+          PAT: ${{ secrets.OPENHANDS_GH_PAT }}
+          BUILTIN_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL_OUT: ${{ steps.draft_pr.outputs.PR_URL }}
+          RUN_ID: ${{ github.run_id }}
+          GESAMT_STATUS: ${{ job.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          TOKEN="${PAT:-${BUILTIN_TOKEN:-}}"
+          if [ -z "$TOKEN" ]; then
+            echo "::warning::Kein Token für das Gedächtnis; Eintrag entfällt."
+            exit 0
+          fi
+          arbeitsordner="$(mktemp -d)"
+          ziel="$arbeitsordner/projects/$PROJECT_NAME/GEDAEHNTNIS.md"
+          mkdir -p "$(dirname "$ziel")"
+          api="https://api.github.com/repos/$GITHUB_REPOSITORY/contents/projects/$PROJECT_NAME/GEDAEHNTNIS.md"
+          sha=""
+          if curl -fsSL -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github+json" "$api?ref=main" -o "$arbeitsordner/antwort.json"; then
+            sha="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['sha'])" "$arbeitsordner/antwort.json")"
+            python3 -c "import base64,json,sys;open(sys.argv[1],'wb').write(base64.b64decode(json.load(open(sys.argv[2]))['content']))" "$ziel" "$arbeitsordner/antwort.json"
+            echo "Vorhandenes Gedächtnis geladen (sha ${sha:0:7})."
+          else
+            echo "Noch kein Gedächtnis in main; es wird angelegt."
+          fi
+          zeile="Lauf ${RUN_ID} (${GESAMT_STATUS}) | Route ${LLM_MODEL:-keine} | Branch ${BRANCH:-keiner} | PR ${PR_URL_OUT:-keiner} | Dateien ${ASSETS_ANZAHL:-0} | Zugang ${GH_TOKEN_SOURCE:-unbekannt}"
+          python3 control/scripts/projekt_gedaechtnis.py --wurzel "$arbeitsordner" eintrag --projekt "$PROJECT_NAME" --art lauf --text "$zeile" --quelle "$RUN_URL" || true
+          if [ "$GESAMT_STATUS" != "success" ]; then
+            python3 control/scripts/projekt_gedaechtnis.py --wurzel "$arbeitsordner" eintrag --projekt "$PROJECT_NAME" --art offen --text "Lauf ${RUN_ID} endete mit '${GESAMT_STATUS}'; Ursache im Laufprotokoll prüfen, bevor derselbe Weg erneut versucht wird." --quelle "$RUN_URL" || true
+          fi
+          python3 control/scripts/projekt_gedaechtnis.py --wurzel "$arbeitsordner" kompakt --projekt "$PROJECT_NAME" --max 25 || true
+          inhalt="$(base64 -w 0 "$ziel")"
+          if [ -n "$sha" ]; then
+            printf '{"message":"gedaechtnis: Lauf %s","content":"%s","branch":"main","sha":"%s"}' "$RUN_ID" "$inhalt" "$sha" > "$arbeitsordner/payload.json"
+          else
+            printf '{"message":"gedaechtnis: Lauf %s","content":"%s","branch":"main"}' "$RUN_ID" "$inhalt" > "$arbeitsordner/payload.json"
+          fi
+          code="$(curl -s -o "$arbeitsordner/put.json" -w '%{http_code}' -X PUT -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github+json" -H "Content-Type: application/json" --data @"$arbeitsordner/payload.json" "$api")"
+          if [ "$code" = "200" ] || [ "$code" = "201" ]; then
+            echo "Gedächtnis für $PROJECT_NAME fortgeschrieben (HTTP $code)."
+          else
+            echo "::warning::Gedächtnis nicht gespeichert (HTTP $code)."
+          fi
+          python3 -c "import shutil,sys;shutil.rmtree(sys.argv[1], ignore_errors=True)" "$arbeitsordner"
+\nVorheriger Rollenlauf fehlgeschlagen. Prüfe den vorhandenen Diff und reproduziere den Fehler mit vorhandenen lokalen Checks. Repariere nur bestätigte Ursachen; keine Rechteänderungen, keine kostenpflichtigen Dienste. Führe betroffene Checks erneut aus.'
+                  echo "::warning::Rolle ${role}: ein begrenzter Reparaturversuch ohne Anbieterwechsel."
+                  echo "Self-healing: ${role}, Reparaturversuch gestartet" >> "$GITHUB_STEP_SUMMARY"
+                  continue
+                fi
+                echo "::error::Rolle ${role}: Reparaturversuch fehlgeschlagen."
                 return 1
               fi
               if [ "$attempt" -ge "$ROUTE_RETRIES" ]; then
