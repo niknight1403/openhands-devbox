@@ -11,7 +11,6 @@ alles andere ist bewusst knapp gehalten, damit es gelesen wird.
 
 ## Läufe
 
-- 2026-11-09 | Lauf 42546288483 (success) | Route openrouter:qwen/qwen3-coder:free | Branch agent/openhands-20261109-013448 | PR #258 | 2 neue Testdateien, Befund 1 und 4 umgesetzt [https://github.com/niknight1403/openhands-devbox/actions/runs/42546288483]
 - 2026-11-09 | Lauf 42554062108 (failure) | Route keine | Branch agent/openhands-20261109-030131 | PR keiner | Dateien 1 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/42554062108]
 - 2026-11-09 | Lauf 42554381341 (failure) | Route openai/gpt-oss-120b | Branch agent/openhands-20261109-030506 | PR keiner | Dateien 1 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/42554381341]
 - 2026-11-09 | Lauf 42556430530 (success) | Route openrouter/stealth/crouton-alpha | Branch agent/app-1794194797098 | PR keiner | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/42556430530]
@@ -36,6 +35,7 @@ alles andere ist bewusst knapp gehalten, damit es gelesen wird.
 - 2026-11-22 | Lauf 45016065366 (success) | Route openai/gemini-3.1-flash-lite | Branch agent/openhands-20261122-111116 | PR https://github.com/niknight1403/CyberSarah-Control-Center/pull/335 | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/45016065366]
 - 2026-11-23 | Lauf 45173508367 (success) | Route openrouter/nvidia/nemotron-3-ultra-550b-a55b:free | Branch agent/openhands-20261123-122128 | PR https://github.com/niknight1403/CyberSarah-Control-Center/pull/336 | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/45173508367]
 - 2026-11-24 | Lauf 45404750579 (success) | Route openrouter/nvidia/nemotron-3-ultra-550b-a55b:free | Branch agent/openhands-20261124-133410 | PR https://github.com/niknight1403/CyberSarah-Control-Center/pull/338 | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/45404750579]
+- 2026-11-25 | Lauf 45616496786 (failure) | Route keine | Branch agent/openhands-20261125-124332 | PR keiner | Dateien 0 | Zugang OPENHANDS_GH_PAT [https://github.com/niknight1403/openhands-devbox/actions/runs/45616496786]
 
 ## Entscheidungen
 
@@ -63,3 +63,4 @@ alles andere ist bewusst knapp gehalten, damit es gelesen wird.
 - 2026-11-12 | Lauf 43204862067 endete mit 'failure'; Ursache im Laufprotokoll prüfen, bevor derselbe Weg erneut versucht wird. [https://github.com/niknight1403/openhands-devbox/actions/runs/43204862067]
 - 2026-11-13 | Lauf 43412356459 endete mit 'failure'; Ursache im Laufprotokoll prüfen, bevor derselbe Weg erneut versucht wird. [https://github.com/niknight1403/openhands-devbox/actions/runs/43412356459]
 - 2026-11-14 | Lauf 43584298582 endete mit 'failure'; Ursache im Laufprotokoll prüfen, bevor derselbe Weg erneut versucht wird. [https://github.com/niknight1403/openhands-devbox/actions/runs/43584298582]
+- 2026-11-25 | Lauf 45616496786 endete mit 'failure'; Ursache im Laufprotokoll prüfen, bevor derselbe Weg erneut versucht wird. [https://github.com/niknight1403/openhands-devbox/actions/runs/45616496786]
