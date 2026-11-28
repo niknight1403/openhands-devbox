@@ -1,0 +1,281 @@
+{
+  "generated_at": "2026-11-28T07:19:05+00:00",
+  "mode": "cloud",
+  "packs": [
+    {
+      "name": "anthropic-skills",
+      "repo": "anthropics/skills",
+      "mode": "validate",
+      "ok": true,
+      "skills": [
+        {
+          "name": "docx",
+          "ok": true,
+          "reason": "ok"
+        },
+        {
+          "name": "frontend-design",
+          "ok": true,
+          "reason": "ok"
+        }
+      ],
+      "reason": "geprüft, nicht kopiert (mode=validate)",
+      "installed": 0
+    }
+  ],
+  "routes": [
+    {
+      "provider": "groq",
+      "base_url": "https://api.groq.com/openai/v1",
+      "model": "openai/gpt-oss-120b",
+      "litellm_model": "openai/openai/gpt-oss-120b",
+      "origin": "builtin",
+      "chat_ok": true,
+      "tools_ok": true,
+      "status": 200,
+      "latency_ms": 226,
+      "tool_status": 200
+    },
+    {
+      "provider": "openrouter",
+      "base_url": "https://openrouter.ai/api/v1",
+      "model": "liquid/lfm-3-1.7b:free",
+      "litellm_model": "openrouter/liquid/lfm-3-1.7b:free",
+      "origin": "builtin",
+      "chat_ok": true,
+      "tools_ok": true,
+      "status": 200,
+      "latency_ms": 265,
+      "tool_status": 200
+    },
+    {
+      "provider": "pollinations",
+      "base_url": "https://text.pollinations.ai/openai",
+      "model": "openai",
+      "litellm_model": "openai/openai",
+      "origin": "builtin",
+      "chat_ok": true,
+      "tools_ok": true,
+      "status": 200,
+      "latency_ms": 286,
+      "tool_status": 200
+    },
+    {
+      "provider": "openrouter",
+      "base_url": "https://openrouter.ai/api/v1",
+      "model": "baidu/ernie-5.5-flash-preview:free",
+      "litellm_model": "openrouter/baidu/ernie-5.5-flash-preview:free",
+      "origin": "builtin",
+      "chat_ok": true,
+      "tools_ok": true,
+      "status": 200,
+      "latency_ms": 701,
+      "tool_status": 200
+    },
+    {
+      "provider": "openrouter",
+      "base_url": "https://openrouter.ai/api/v1",
+      "model": "recursive/flint-v1.0:free",
+      "litellm_model": "openrouter/recursive/flint-v1.0:free",
+      "origin": "builtin",
+      "chat_ok": true,
+      "tools_ok": true,
+      "status": 200,
+      "latency_ms": 1179,
+      "tool_status": 200
+    },
+    {
+      "provider": "groq",
+      "base_url": "https://api.groq.com/openai/v1",
+      "model": "openai/gpt-oss-20b",
+      "litellm_model": "openai/openai/gpt-oss-20b",
+      "origin": "builtin",
+      "chat_ok": true,
+      "tools_ok": false,
+      "status": 200,
+      "latency_ms": 253,
+      "tool_status": 200
+    },
+    {
+      "provider": "openrouter",
+      "base_url": "https://openrouter.ai/api/v1",
+      "model": "nvidia/nemotron-3.5-super-vl:free",
+      "litellm_model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+      "origin": "builtin",
+      "chat_ok": true,
+      "tools_ok": false,
+      "status": 200,
+      "latency_ms": 397,
+      "tool_status": 200
+    },
+    {
+      "provider": "groq",
+      "base_url": "https://api.groq.com/openai/v1",
+      "model": "llama-3.3-70b-versatile",
+      "litellm_model": "openai/llama-3.3-70b-versatile",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 404,
+      "latency_ms": 75
+    },
+    {
+      "provider": "huggingface",
+      "base_url": "https://router.huggingface.co/v1",
+      "model": "Qwen/Qwen3-235B-A22B-Instruct-2507:fireworks-ai",
+      "litellm_model": "openai/Qwen/Qwen3-235B-A22B-Instruct-2507:fireworks-ai",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 400,
+      "latency_ms": 78
+    },
+    {
+      "provider": "groq",
+      "base_url": "https://api.groq.com/openai/v1",
+      "model": "llama-3.1-8b-instant",
+      "litellm_model": "openai/llama-3.1-8b-instant",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 404,
+      "latency_ms": 79
+    },
+    {
+      "provider": "huggingface",
+      "base_url": "https://router.huggingface.co/v1",
+      "model": "Qwen/Qwen3-Coder-480B-A35B-Instruct:cerebras",
+      "litellm_model": "openai/Qwen/Qwen3-Coder-480B-A35B-Instruct:cerebras",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 400,
+      "latency_ms": 101
+    },
+    {
+      "provider": "cerebras",
+      "base_url": "https://api.cerebras.ai/v1",
+      "model": "qwen-3.8-27b",
+      "litellm_model": "openai/qwen-3.8-27b",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 402,
+      "latency_ms": 105
+    },
+    {
+      "provider": "huggingface",
+      "base_url": "https://router.huggingface.co/v1",
+      "model": "openai/gpt-oss-120b:cerebras",
+      "litellm_model": "openai/openai/gpt-oss-120b:cerebras",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 402,
+      "latency_ms": 112
+    },
+    {
+      "provider": "gemini",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "model": "gemini-2.5-flash",
+      "litellm_model": "openai/gemini-2.5-flash",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 404,
+      "latency_ms": 121
+    },
+    {
+      "provider": "cerebras",
+      "base_url": "https://api.cerebras.ai/v1",
+      "model": "gpt-oss-120b",
+      "litellm_model": "openai/gpt-oss-120b",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 402,
+      "latency_ms": 147
+    },
+    {
+      "provider": "openrouter",
+      "base_url": "https://openrouter.ai/api/v1",
+      "model": "particle-ai/particle-1:free",
+      "litellm_model": "openrouter/particle-ai/particle-1:free",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 429,
+      "latency_ms": 246
+    },
+    {
+      "provider": "openai",
+      "base_url": "https://api.openai.com/v1",
+      "model": "gpt-4.1-mini",
+      "litellm_model": "openai/gpt-4.1-mini",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 429,
+      "latency_ms": 847
+    },
+    {
+      "provider": "openai",
+      "base_url": "https://api.openai.com/v1",
+      "model": "gpt-4o-mini",
+      "litellm_model": "openai/gpt-4o-mini",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 429,
+      "latency_ms": 993
+    },
+    {
+      "provider": "gemini",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "model": "gemini-3.1-flash-lite",
+      "litellm_model": "openai/gemini-3.1-flash-lite",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 503,
+      "latency_ms": 1234
+    },
+    {
+      "provider": "gemini",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "model": "gemini-4-hydrogen",
+      "litellm_model": "openai/gemini-4-hydrogen",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 503,
+      "latency_ms": 16915
+    },
+    {
+      "provider": "gemini",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "model": "gemini-3.8-flash",
+      "litellm_model": "openai/gemini-3.8-flash",
+      "origin": "builtin",
+      "chat_ok": false,
+      "tools_ok": false,
+      "status": 0,
+      "latency_ms": 20042
+    }
+  ],
+  "best": {
+    "provider": "groq",
+    "base_url": "https://api.groq.com/openai/v1",
+    "model": "openai/gpt-oss-120b",
+    "litellm_model": "openai/openai/gpt-oss-120b",
+    "origin": "builtin",
+    "chat_ok": true,
+    "tools_ok": true,
+    "status": 200,
+    "latency_ms": 226,
+    "tool_status": 200
+  },
+  "warnings": [],
+  "tool_probe": true,
+  "duration_s": 21.3
+}
